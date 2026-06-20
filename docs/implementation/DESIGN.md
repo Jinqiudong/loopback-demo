@@ -316,13 +316,15 @@ Returns: { success: boolean, updated_at: string }
 - ✅ Week 1, Day 1-2: Slack Bolt skeleton, intent classification
   (question vs. noise only — no fine-grained categories yet), draft-status
   task card. Lives in `mira-app/`.
-- ⏳ Week 1, Day 3-5: Wire up Vault-priority query logic against
-  teammate's API (mock first, then real).
+- ✅ Week 1, Day 3-5: VaultClient wrapper + stub mode; mention handler updated
+  to full draft → ai_searching → pending_confirm / human_working flow;
+  task card updated to render search results and Confirm / Not Helpful buttons.
+  API signatures not yet locked with teammate — pending alignment meeting.
 - ⏳ Week 2 (6/26–7/6): Teammate builds independently — full three-signal
   logic, confidence accumulation, version history, 30-min timer + follow-up.
 - ⏳ Week 3 (7/6–7/9): Integration sprint, Dashboard (App Home), task card
   polish, seed data.
 - ⏳ Week 4 (7/10–7/13): Demo recording, Devpost submission.
 
-See `implementation-plan.md` (same `docs/` folder) for the full
+See `implementation-plan.md` (same `docs/implementation/` folder) for the full
 day-by-day breakdown.

@@ -37,10 +37,10 @@ def _stub_search(query: str) -> list[dict[str, Any]]:
     return [
         {
             "entry_id": "stub-001",
-            "question": "How do I request PTO?",
-            "answer": "Submit a request via Workday at least 3 business days in advance.",
+            "question": query,
+            "answer": f"[STUB] This is a placeholder answer for: {query!r}",
             "confidence": 0.91,
-            "verified": True,
+            "verified": False,
         }
     ]
 

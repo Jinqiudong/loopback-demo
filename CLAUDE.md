@@ -15,7 +15,7 @@ open-ended engineering project. Act accordingly:
    design decisions that look like unnecessary complexity if you're only
    optimizing for "does it run" — e.g. the two distinct paths into
    `unconfirmed` status, or Mira never relaying messages between requester
-   and resolver. If a design decision in `docs/DESIGN.md` seems like it
+   and resolver. If a design decision in `docs/implementation/DESIGN.md` seems like it
    could be done more simply, **assume the complexity is intentional and
    ask before removing it.** It usually exists because it's the answer to
    a judging-criteria question ("how is this different from what already
@@ -43,17 +43,20 @@ open-ended engineering project. Act accordingly:
 
 ## Where to find things
 
-- **`docs/DESIGN.md`** — the full design context: core mechanism, the
+- **`docs/implementation/DESIGN.md`** — the full design context: core mechanism, the
   Resolution Cycle state machine, the three confirmation signals, data
   model, API contract between Mira and the Vault, naming conventions.
   **Read this before touching any resolution/status logic.**
-- **`docs/implementation-plan.md`** — the week-by-week task breakdown,
+- **`docs/implementation/implementation-plan.md`** — the week-by-week task breakdown,
   who owns what, current build status.
+- **`docs/submission/project-story.md`** — the Devpost submission draft.
+  **Update the relevant section every time a milestone is completed.**
+  Sections marked TBD or "update as build progresses" are the ones to fill in.
 - **`mira-app/`** — the conversational layer (Slack Bolt, intent
   classification, task cards, dashboard). This is Jinqiu's side.
 - **`vault-service/`** — storage, embeddings, semantic search, confidence
   scoring, version history. This is the teammate's side. Treat the API
-  contract in `docs/DESIGN.md` as fixed when working in `mira-app/` —
+  contract in `docs/implementation/DESIGN.md` as fixed when working in `mira-app/` —
   don't assume internals of how the Vault is implemented.
 
 ---

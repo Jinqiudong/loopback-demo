@@ -2,7 +2,7 @@
 
 System architecture for LoopBack. This is the technical structure
 reference — for product mechanism and design rationale, see
-`docs/DESIGN.md`. For day-by-day build status, see
+`docs/implementation/DESIGN.md`. For day-by-day build status, see
 `docs/implementation-plan.md`.
 
 ---
@@ -24,7 +24,7 @@ reference — for product mechanism and design rationale, see
 │   └──────┬───────┘                          └────────────┘ │
 │          │                                                  │
 └──────────┼──────────────────────────────────────────────────┘
-           │  API contract (3 functions, see docs/DESIGN.md)
+           │  API contract (3 functions, see docs/implementation/DESIGN.md)
            ▼
    ┌──────────────────┐
    │  vault-service     │
@@ -59,10 +59,9 @@ mira-app/
 ├── services/
 │   ├── intent.py             # Claude API — classifies question vs. noise
 │   ├── task_card.py          # builds Block Kit task card UI, per status
-│   └── vault_client.py       # HTTP client for calling vault-service's API
-│                              #   (Day 3-5 addition — wraps the 3 contract
-│                              #   functions so the rest of mira-app never
-│                              #   talks to Supabase directly)
+│   └── vault_client.py       # Python wrapper around vault-service's 3 API functions
+│                              #   (Day 3-5 addition — imported directly, same process;
+│                              #   the rest of mira-app never talks to Supabase directly)
 └── dashboard/                # App Home — Knowledge Vault Dashboard UI
     └── home_view.py           # (Week 3 addition)
 ```
@@ -71,7 +70,7 @@ mira-app/
 - Receive Slack events (`app_mention`, message replies, reactions)
 - Classify intent (Claude API)
 - Call `vault-service` to check for an existing answer before doing
-  anything else (cost optimization — see `docs/DESIGN.md` § Why
+  anything else (cost optimization — see `docs/implementation/DESIGN.md` § Why
   Vault-first matters)
 - Search Slack history when the Vault has no match (Real-Time Search API)
 - Render and update the task card (Block Kit) as it moves through the
@@ -103,7 +102,7 @@ vault-service/
 
 **Responsibilities:**
 - Own the two-table schema (`task_cards`, `vault_entries`) — see
-  `docs/DESIGN.md` § Data model for the exact fields
+  `docs/implementation/DESIGN.md` § Data model for the exact fields
 - Generate embeddings for new questions and stored entries
 - Run cosine similarity search via pgvector
 - Implement the three-signal confidence logic and the two-tier
@@ -131,7 +130,7 @@ API functions.
 
 This is intentionally the **only** coupling point between `mira-app` and
 `vault-service`. Full input/output shapes are documented in
-`docs/DESIGN.md` § API contract — summarized here for the architectural
+`docs/implementation/DESIGN.md` § API contract — summarized here for the architectural
 view:
 
 ```
@@ -185,7 +184,7 @@ people working on the project — not a unilateral edit on either side.
                 7. mira-app detects resolution signal, status → pending_confirm
                         │
                         ▼
-                8. 30-min window: signal 1 / 2 / 3 (see docs/DESIGN.md)
+                8. 30-min window: signal 1 / 2 / 3 (see docs/implementation/DESIGN.md)
                         │
                         ▼
                 9. mira-app calls vault_client.upsert_vault_entry(...)
@@ -205,19 +204,11 @@ people working on the project — not a unilateral edit on either side.
 ```
 mira-app/       → Railway (Slack Bolt app, Socket Mode for dev,
                    HTTP mode once deployed)
-vault-service/  → Railway (or same service as mira-app if simpler —
-                   TBD based on how the API is exposed; could be a
-                   thin internal API or a Python module imported
-                   directly if both run in the same process)
+vault-service/  → Python package imported directly by mira-app in the
+                   same process (resolved during Week 1 contract lock-in;
+                   chosen for simplicity under hackathon time constraints)
 Supabase        → hosted, free tier
 ```
-
-**Open question (resolve during Week 1 contract lock-in):** will
-`vault-service` run as a separate HTTP service that `mira-app` calls over
-the network, or as a Python package that `mira-app` imports directly in
-the same process? Either works with the same three-function contract —
-this is a deployment detail, not a design one. Pick whichever is faster
-to build and debug under the time constraint.
 
 ---
 

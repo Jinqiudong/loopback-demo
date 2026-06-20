@@ -174,10 +174,16 @@ earns that trust instead.
 
 **[Diagram 4: Knowledge Vault Dashboard — placeholder]**
 
-With the architecture, Mira's internal logic, and the Knowledge Vault
-schema fully designed, we're now moving into implementation — splitting
-the build between Mira's conversational layer and the Vault's storage
-and retrieval layer, working in parallel.
+Week 1 of implementation is complete. On Mira's side: a Slack Bolt app
+listening for `@Mira` mentions, Claude-powered intent classification
+(question vs. noise), a live-updating Block Kit task card, and a
+`VaultClient` layer that moves the card through its full lifecycle —
+draft, searching, and either surfacing a suggested answer with Confirm /
+Not Helpful buttons, or flagging the question for a human teammate. The
+build split is working: Mira's conversational layer and the Knowledge
+Vault's storage layer are being developed in parallel against a fixed
+three-function API contract, with stub mode keeping Mira runnable
+before the real Vault package is connected.
 
 ---
 
