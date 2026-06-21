@@ -33,18 +33,9 @@ class VaultClient:
 
 
 def _stub_search(query: str) -> list[dict[str, Any]]:
-    # Return [] to simulate cold start (human_working path).
-    # Return a result dict to test the pending_confirm path.
+    # Returns [] by default (cold start path).
+    # Swap to a result dict to test the vault hit path locally.
     return []
-    # return [
-    #     {
-    #         "entry_id": "stub-001",
-    #         "question": query,
-    #         "answer": f"[STUB] Placeholder answer for: {query!r}",
-    #         "confidence": 0.91,
-    #         "verified": False,
-    #     }
-    # ]
 
 
 def _stub_upsert() -> str:
