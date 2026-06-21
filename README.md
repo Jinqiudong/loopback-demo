@@ -45,6 +45,21 @@ Knowledge Vault search (semantic, via pgvector)
             → Denied     → Back to resolver, old answer preserved in version history
 ```
 
+## Demo
+
+The demo follows three acts — each one shows a different part of the knowledge loop.
+
+**Act 1 — Cold start (the loop begins)**
+> A question has never been asked before. Mira searches the Vault, finds nothing, and escalates to a resolver. The resolver answers directly in the thread — Mira never relays. Once the exchange settles, Mira follows up, the requester confirms, and the answer is written to the Vault as a verified entry.
+
+**Act 2 — Vault hit (the loop pays off)**
+> The same question is asked again — in different words. Mira recognizes the intent, retrieves the verified answer from the Vault in seconds, and surfaces it with a confidence score. The resolver is never disturbed. This is what the system is for.
+
+**Act 3 — Knowledge Vault Dashboard**
+> Open App Home to see the growing knowledge base: every verified entry, its confidence score, who owns it, how many times it's been used, and the full resolution history behind it.
+
+---
+
 ## What makes this different
 
 | | Slack AI | Guru / Tettra | LoopBack |

@@ -5,7 +5,7 @@ the card updates in place as it moves through states, not as separate messages.
 """
 
 import json
-from typing import Any
+from typing import Any, Optional
 
 STATUS_LABELS = {
     "draft": "Draft",
@@ -23,7 +23,7 @@ _ANSWER_PREVIEW_LIMIT = 280
 def build_task_card(
     question_text: str,
     status: str = "draft",
-    results: list[dict[str, Any]] | None = None,
+    results: Optional[list[dict[str, Any]]] = None,
 ) -> list[dict]:
     status_label = STATUS_LABELS.get(status, status)
 
