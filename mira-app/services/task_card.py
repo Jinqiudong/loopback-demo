@@ -79,9 +79,13 @@ def _truncate(answer: str) -> str:
 
 
 def _button_value(result: dict[str, Any], answer: str) -> str:
-    # Encode both entry_id and answer so action handlers can rebuild the card
-    # without a second Vault lookup.
-    return json.dumps({"entry_id": result.get("entry_id", ""), "answer": answer})
+    # Encode all fields action handlers need to call upsert_entry without a second Vault lookup.
+    return json.dumps({
+        "task_card_id": result.get("task_card_id", ""),
+        "entry_id": result.get("entry_id", ""),
+        "answer": answer,
+        "owner_id": result.get("owner_id", ""),
+    })
 
 
 def _pending_confirm_blocks(result: dict[str, Any]) -> list[dict]:

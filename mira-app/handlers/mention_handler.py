@@ -56,6 +56,7 @@ def register_mention_handler(app):
 
         channel = event["channel"]
         thread_ts = event.get("thread_ts", event.get("ts"))
+        requester_id = event.get("user", "")
 
         # Post immediately so the user sees something right away.
         resp = say(
@@ -69,16 +70,25 @@ def register_mention_handler(app):
         _update_card(client, channel, card_ts, question_text, "ai_searching")
 
         try:
-            vault_results = _vault.search(question_text)
-            entry_id = _vault.upsert_entry(question_text, channel, thread_ts)
+            task_card_id = _vault.create_task_card(
+                requester_id=requester_id,
+                channel_id=channel,
+                thread_ts=thread_ts,
+                question_raw=question_text,
+                question_intent=result.raw_label,
+            )
+            vault_result = _vault.search(question_text)
         except Exception:
             logger.exception("Vault call failed; falling back to human_working.")
             _update_card(client, channel, card_ts, question_text, "human_working")
             return
 
-        if vault_results:
-            _vault.update_status(entry_id, "pending_confirm")
-            _update_card(client, channel, card_ts, question_text, "pending_confirm", results=vault_results)
+        if vault_result["match_found"]:
+            _vault.update_status(task_card_id, "pending_confirm")
+            _update_card(
+                client, channel, card_ts, question_text, "pending_confirm",
+                results=[{**vault_result, "task_card_id": task_card_id}],
+            )
         else:
-            _vault.update_status(entry_id, "human_working")
+            _vault.update_status(task_card_id, "human_working")
             _update_card(client, channel, card_ts, question_text, "human_working")
