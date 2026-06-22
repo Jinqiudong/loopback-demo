@@ -242,8 +242,10 @@ def _button_value(result: dict[str, Any], answer: str,
                   thread_ts: Optional[str], asker_id: Optional[str],
                   vault_hit: bool = False) -> str:
     return json.dumps({
+        "task_card_id": result.get("task_card_id", ""),
         "entry_id": result.get("entry_id", ""),
         "answer": answer,
+        "owner_id": result.get("owner_id", ""),
         "thread_ts": thread_ts or "",
         "asker_id": asker_id or "",
         "vault_hit": vault_hit,

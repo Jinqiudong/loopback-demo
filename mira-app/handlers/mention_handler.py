@@ -1,19 +1,12 @@
 """
-Handles the `app_mention` event -- i.e. whenever someone @-mentions Mira
-in a Slack channel or thread.
+Handles the `app_mention` event — whenever someone @-mentions Mira.
 
-Week 1 Day 3-5 flow:
-  1. Strip the bot mention out of the message text.
-  2. Classify it: question or noise. If noise, do nothing.
-  3. Post a draft card immediately (instant feedback to the user).
-  4. Update the card to ai_searching, then call the Knowledge Vault.
-  5a. Results found → update card to pending_confirm with suggested answer + buttons.
-  5b. No results   → update card to human_working.
-
-What's intentionally NOT here yet:
-  - Resolution detection / three-signal confirmation logic
-  - Escalating to a named resolver
-  - Handling the Confirm / Not Helpful button actions (wired in a later week)
+Flow:
+  1. Strip mention, classify intent. Noise → ignore.
+  2. Post draft card immediately (instant feedback).
+  3. Create task card record in the Vault, then search for an existing answer.
+  4a. Match found  → pending_confirm with suggested answer + buttons.
+  4b. No match     → human_working, resolver answers directly in thread.
 """
 
 import re
@@ -59,9 +52,8 @@ def register_mention_handler(app):
 
         channel = event["channel"]
         thread_ts = event.get("thread_ts", event.get("ts"))
-        asker_id = event.get("user")
+        asker_id = event.get("user", "")
 
-        # Post immediately so the user sees something right away.
         resp = say(
             channel=channel,
             thread_ts=thread_ts,
@@ -75,20 +67,28 @@ def register_mention_handler(app):
                      thread_ts=thread_ts, asker_id=asker_id)
 
         try:
-            vault_results = _vault.search(question_text)
-            entry_id = _vault.upsert_entry(question_text, channel, thread_ts)
+            task_card_id = _vault.create_task_card(
+                requester_id=asker_id,
+                channel_id=channel,
+                thread_ts=thread_ts,
+                question_raw=question_text,
+                question_intent=result.raw_label,
+            )
+            vault_result = _vault.search(question_text)
         except Exception:
             logger.exception("Vault call failed; falling back to human_working.")
             _update_card(client, channel, card_ts, question_text, "human_working",
                          thread_ts=thread_ts, asker_id=asker_id)
             return
 
-        if vault_results:
-            _vault.update_status(entry_id, "pending_confirm")
-            _update_card(client, channel, card_ts, question_text, "pending_confirm",
-                         results=vault_results, thread_ts=thread_ts, asker_id=asker_id,
-                         vault_hit=True)
+        if vault_result["match_found"]:
+            _vault.update_status(task_card_id, "pending_confirm")
+            _update_card(
+                client, channel, card_ts, question_text, "pending_confirm",
+                results=[{**vault_result, "task_card_id": task_card_id}],
+                thread_ts=thread_ts, asker_id=asker_id, vault_hit=True,
+            )
         else:
-            _vault.update_status(entry_id, "human_working")
+            _vault.update_status(task_card_id, "human_working")
             _update_card(client, channel, card_ts, question_text, "human_working",
                          thread_ts=thread_ts, asker_id=asker_id, vault_hit=False)
