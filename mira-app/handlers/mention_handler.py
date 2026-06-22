@@ -1,22 +1,36 @@
 """
 Handles the `app_mention` event — whenever someone @-mentions Mira.
 
-Flow:
-  1. Strip mention, classify intent. Noise → ignore.
-  2. Post draft card immediately (instant feedback).
-  3. Create task card record in the Vault, then search for an existing answer.
-  4a. Match found  → pending_confirm with suggested answer + buttons.
-  4b. No match     → human_working, resolver answers directly in thread.
+Full flow:
+  1. Classify intent. Noise → ignore.
+  2. Post draft card immediately.
+  3. Create task card record in Vault, then search for an existing answer.
+
+  Vault hit (confidence > 0.85):
+    → pending_confirm with ⚡ Answered from Knowledge Vault
+
+  Vault low-confidence (0.7–0.85):
+    → pending_confirm with clarifying message ("Found something related...")
+
+  Vault miss:
+    → Search Slack history (Real-Time Search API)
+    → History hit  → pending_confirm with history result
+    → History miss → human_working, register thread for resolution detection
 """
 
 import re
 
 from services.intent import classify_intent
+from services.slack_search import search_slack_history
 from services.task_card import build_task_card
 from services.vault_client import VaultClient
+from handlers.resolution_handler import register_active_thread
 
 _MENTION_PATTERN = re.compile(r"<@[A-Z0-9]+>")
 _vault = VaultClient()
+
+_VAULT_HIGH_CONFIDENCE = 0.85
+_VAULT_LOW_CONFIDENCE = 0.70
 
 
 def _strip_mention(raw_text: str) -> str:
@@ -41,11 +55,11 @@ def register_mention_handler(app):
         question_text = _strip_mention(event.get("text", ""))
 
         if not question_text:
-            logger.info("Mention had no text content after stripping; ignoring.")
+            logger.info("Mention had no text after stripping; ignoring.")
             return
 
         result = classify_intent(question_text)
-        logger.info(f"Intent classified as {result.raw_label}: {question_text!r}")
+        logger.info(f"Intent: {result.raw_label} — {question_text!r}")
 
         if not result.is_question:
             return
@@ -82,13 +96,73 @@ def register_mention_handler(app):
             return
 
         if vault_result["match_found"]:
-            _vault.update_status(task_card_id, "pending_confirm")
-            _update_card(
-                client, channel, card_ts, question_text, "pending_confirm",
-                results=[{**vault_result, "task_card_id": task_card_id}],
-                thread_ts=thread_ts, asker_id=asker_id, vault_hit=True,
-            )
+            confidence = vault_result.get("confidence", 0)
+            result_payload = [{**vault_result, "task_card_id": task_card_id}]
+
+            if confidence >= _VAULT_HIGH_CONFIDENCE:
+                # High confidence: surface answer directly
+                _vault.update_status(task_card_id, "pending_confirm")
+                _update_card(
+                    client, channel, card_ts, question_text, "pending_confirm",
+                    results=result_payload,
+                    thread_ts=thread_ts, asker_id=asker_id, vault_hit=True,
+                )
+            else:
+                # Low confidence (0.70–0.85): ask clarifying question first
+                _vault.update_status(task_card_id, "pending_confirm")
+                _update_card(
+                    client, channel, card_ts, question_text, "pending_confirm",
+                    results=result_payload,
+                    thread_ts=thread_ts, asker_id=asker_id, vault_hit=False,
+                )
+                say(
+                    channel=channel,
+                    thread_ts=thread_ts,
+                    text=(
+                        f"I found something that might be related — "
+                        f"is this the same as what you're asking about? "
+                        f"({int(confidence * 100)}% match)"
+                    ),
+                )
+
         else:
-            _vault.update_status(task_card_id, "human_working")
-            _update_card(client, channel, card_ts, question_text, "human_working",
-                         thread_ts=thread_ts, asker_id=asker_id, vault_hit=False)
+            # Vault miss: try Slack history before escalating to a human
+            history = search_slack_history(question_text)
+
+            if history:
+                best = history[0]
+                _vault.update_status(task_card_id, "pending_confirm")
+                _update_card(
+                    client, channel, card_ts, question_text, "pending_confirm",
+                    results=[{
+                        "task_card_id": task_card_id,
+                        "entry_id": None,
+                        "answer": best["text"],
+                        "owner_id": best.get("user", ""),
+                        "confidence": 0.75,
+                        "usage_count": 0,
+                        "verified": False,
+                    }],
+                    thread_ts=thread_ts, asker_id=asker_id, vault_hit=False,
+                )
+                if best.get("permalink"):
+                    say(
+                        channel=channel,
+                        thread_ts=thread_ts,
+                        text=f"Found something related in Slack history: {best['permalink']}",
+                    )
+            else:
+                # No match anywhere — escalate to a human
+                _vault.update_status(task_card_id, "human_working")
+                _update_card(
+                    client, channel, card_ts, question_text, "human_working",
+                    thread_ts=thread_ts, asker_id=asker_id, vault_hit=False,
+                )
+                register_active_thread(
+                    thread_ts=thread_ts,
+                    card_ts=card_ts,
+                    channel=channel,
+                    question_text=question_text,
+                    asker_id=asker_id,
+                    task_card_id=task_card_id,
+                )
