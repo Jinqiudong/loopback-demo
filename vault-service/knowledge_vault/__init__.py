@@ -287,4 +287,33 @@ def create_task_card(
     return card_id
 
 
-__all__ = ["create_task_card", "search_vault", "upsert_vault_entry", "update_status"]
+def list_vault_entries(limit: int = 20) -> list:
+    """
+    Fetch vault entries for the Dashboard, ordered by most recently updated.
+    Returns a flat list of dicts — schema matches what home_view.py expects.
+    Dashboard will expand this (filtering, pagination) in a later sprint.
+    """
+    rows = (
+        _supabase.table("vault_entries")
+        .select("id, question_canonical, current_answer, owner_id, status, confidence_score, usage_count, last_confirmed_at, updated_at")
+        .order("updated_at", desc=True)
+        .limit(limit)
+        .execute()
+        .data
+    )
+    return [
+        {
+            "entry_id": r["id"],
+            "question_canonical": r["question_canonical"],
+            "current_answer": r["current_answer"],
+            "owner_id": r["owner_id"],
+            "status": r["status"],
+            "confidence_score": r["confidence_score"],
+            "usage_count": r["usage_count"],
+            "last_confirmed_at": r["last_confirmed_at"],
+        }
+        for r in (rows or [])
+    ]
+
+
+__all__ = ["create_task_card", "search_vault", "upsert_vault_entry", "update_status", "list_vault_entries"]
