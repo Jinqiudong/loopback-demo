@@ -1,33 +1,33 @@
 """
-Handles the `app_mention` event — whenever someone @-mentions Mira.
+Handles @Mira mentions.
 
-Full flow:
-  1. Classify intent. Noise → ignore.
-  2. Post draft card immediately.
-  3. Create task card record in Vault, then search for an existing answer.
+Three-tier resolution flow:
+  Tier 1: Knowledge Vault (semantic search)
+  Tier 2: Slack history + GitHub MCP + Data Dictionary (parallel)
+  Tier 3: Escalate to resolver
 
-  Vault hit (confidence > 0.85):
-    → pending_confirm with ⚡ Answered from Knowledge Vault
+v2 addition: if Tier 2 finds something, Mira enriches the task card with findings
+and asks the requester to confirm direction before looping in the resolver.
 
-  Vault low-confidence (0.7–0.85):
-    → pending_confirm with clarifying message ("Found something related...")
-
-  Vault miss:
-    → Search Slack history (Real-Time Search API)
-    → History hit  → pending_confirm with history result
-    → History miss → human_working, register thread for resolution detection
+Special trigger: if the message contains "analyze" → run Enhancement Proposal engine.
 """
 
 import re
 
+import anthropic
+
+from config import ANTHROPIC_API_KEY
 from services.intent import classify_intent
+from services.mcp_github import gather_context
 from services.slack_search import search_slack_history
 from services.task_card import build_task_card
 from services.vault_client import VaultClient
 from handlers.resolution_handler import register_active_thread
+from handlers.direction_handler import register_direction_check
 
 _MENTION_PATTERN = re.compile(r"<@[A-Z0-9]+>")
 _vault = VaultClient()
+_claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 _VAULT_HIGH_CONFIDENCE = 0.85
 _VAULT_LOW_CONFIDENCE = 0.70
@@ -37,16 +37,55 @@ def _strip_mention(raw_text: str) -> str:
     return _MENTION_PATTERN.sub("", raw_text).strip()
 
 
-def _update_card(client, channel: str, ts: str, question: str, status: str,
-                 results=None, thread_ts=None, asker_id=None, vault_hit=False):
+def _update_card(client, channel, ts, question, status,
+                 results=None, thread_ts=None, asker_id=None,
+                 vault_hit=False, context_summary=None):
     client.chat_update(
         channel=channel,
         ts=ts,
         blocks=build_task_card(question, status=status, results=results,
                                 thread_ts=thread_ts, asker_id=asker_id,
-                                vault_hit=vault_hit),
+                                vault_hit=vault_hit, context_summary=context_summary),
         text=f"[{status}] {question}",
     )
+
+
+def _summarise_findings(question: str, findings: dict) -> str:
+    """Use Claude to synthesise Tier 2 findings into a concise summary."""
+    if not findings:
+        return ""
+
+    parts = []
+    if "code_files" in findings:
+        for f in findings["code_files"]:
+            parts.append(f"**{f['filename']}**:\n```\n{f['excerpt']}\n```")
+    if "known_issues" in findings:
+        parts.append(f"**Known issues doc:**\n{findings['known_issues'][:600]}")
+    if "data_dictionary" in findings and not parts:
+        parts.append(f"**Data dictionary:**\n{findings['data_dictionary'][:600]}")
+
+    if not parts:
+        return ""
+
+    raw_context = "\n\n".join(parts)
+
+    try:
+        response = _claude.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=200,
+            system=(
+                "You are Mira, an AI assistant. Summarise the following findings "
+                "in 2-3 bullet points that are directly relevant to the user's question. "
+                "Be specific. Use plain text, no markdown headers."
+            ),
+            messages=[{
+                "role": "user",
+                "content": f"Question: {question}\n\nFindings:\n{raw_context}"
+            }],
+        )
+        return response.content[0].text.strip()
+    except Exception:
+        return raw_context[:300]
 
 
 def register_mention_handler(app):
@@ -55,7 +94,12 @@ def register_mention_handler(app):
         question_text = _strip_mention(event.get("text", ""))
 
         if not question_text:
-            logger.info("Mention had no text after stripping; ignoring.")
+            return
+
+        # Special trigger: @Mira analyze → run Enhancement Proposal engine
+        if re.search(r"\banalyze\b", question_text, re.IGNORECASE):
+            from pm.proposal_engine import run_proposal_engine
+            run_proposal_engine(say, channel=event["channel"])
             return
 
         result = classify_intent(question_text)
@@ -95,74 +139,67 @@ def register_mention_handler(app):
                          thread_ts=thread_ts, asker_id=asker_id)
             return
 
+        # ── Tier 1: Vault hit ─────────────────────────────────────────────
         if vault_result["match_found"]:
             confidence = vault_result.get("confidence", 0)
             result_payload = [{**vault_result, "task_card_id": task_card_id}]
 
+            _vault.update_status(task_card_id, "pending_confirm")
+
             if confidence >= _VAULT_HIGH_CONFIDENCE:
-                # High confidence: surface answer directly
-                _vault.update_status(task_card_id, "pending_confirm")
-                _update_card(
-                    client, channel, card_ts, question_text, "pending_confirm",
-                    results=result_payload,
-                    thread_ts=thread_ts, asker_id=asker_id, vault_hit=True,
-                )
+                _update_card(client, channel, card_ts, question_text, "pending_confirm",
+                             results=result_payload,
+                             thread_ts=thread_ts, asker_id=asker_id, vault_hit=True)
             else:
-                # Low confidence (0.70–0.85): ask clarifying question first
-                _vault.update_status(task_card_id, "pending_confirm")
-                _update_card(
-                    client, channel, card_ts, question_text, "pending_confirm",
-                    results=result_payload,
-                    thread_ts=thread_ts, asker_id=asker_id, vault_hit=False,
-                )
-                say(
-                    channel=channel,
-                    thread_ts=thread_ts,
-                    text=(
-                        f"I found something that might be related — "
-                        f"is this the same as what you're asking about? "
-                        f"({int(confidence * 100)}% match)"
-                    ),
-                )
+                # Medium confidence: show answer but post clarifying question
+                _update_card(client, channel, card_ts, question_text, "pending_confirm",
+                             results=result_payload,
+                             thread_ts=thread_ts, asker_id=asker_id, vault_hit=False)
+                say(channel=channel, thread_ts=thread_ts,
+                    text=f"I found something that might be related — is this the same as what you're asking? ({int(confidence * 100)}% match)")
+            return
+
+        # ── Tier 2: Parallel search ───────────────────────────────────────
+        history_results = search_slack_history(question_text)
+        github_findings = gather_context(question_text)
+
+        has_findings = bool(history_results or github_findings)
+
+        if has_findings:
+            context_summary = _summarise_findings(question_text, github_findings)
+            if not context_summary and history_results:
+                context_summary = f"• Found related message: {history_results[0].get('permalink', '')}"
+
+            # Update card to direction_check state
+            _vault.update_status(task_card_id, "pending_confirm")
+            _update_card(client, channel, card_ts, question_text, "direction_check",
+                         thread_ts=thread_ts, asker_id=asker_id,
+                         context_summary=context_summary)
+
+            # Ask requester to confirm direction
+            say(channel=channel, thread_ts=thread_ts,
+                text=f"Based on what I found, does this look like the right direction? Reply *yes* to loop in your team.")
+
+            register_direction_check(
+                thread_ts=thread_ts,
+                card_ts=card_ts,
+                channel=channel,
+                question_text=question_text,
+                asker_id=asker_id,
+                task_card_id=task_card_id,
+                context_summary=context_summary,
+            )
 
         else:
-            # Vault miss: try Slack history before escalating to a human
-            history = search_slack_history(question_text)
-
-            if history:
-                best = history[0]
-                _vault.update_status(task_card_id, "pending_confirm")
-                _update_card(
-                    client, channel, card_ts, question_text, "pending_confirm",
-                    results=[{
-                        "task_card_id": task_card_id,
-                        "entry_id": None,
-                        "answer": best["text"],
-                        "owner_id": best.get("user", ""),
-                        "confidence": 0.75,
-                        "usage_count": 0,
-                        "verified": False,
-                    }],
-                    thread_ts=thread_ts, asker_id=asker_id, vault_hit=False,
-                )
-                if best.get("permalink"):
-                    say(
-                        channel=channel,
-                        thread_ts=thread_ts,
-                        text=f"Found something related in Slack history: {best['permalink']}",
-                    )
-            else:
-                # No match anywhere — escalate to a human
-                _vault.update_status(task_card_id, "human_working")
-                _update_card(
-                    client, channel, card_ts, question_text, "human_working",
-                    thread_ts=thread_ts, asker_id=asker_id, vault_hit=False,
-                )
-                register_active_thread(
-                    thread_ts=thread_ts,
-                    card_ts=card_ts,
-                    channel=channel,
-                    question_text=question_text,
-                    asker_id=asker_id,
-                    task_card_id=task_card_id,
-                )
+            # ── Tier 3: Escalate ─────────────────────────────────────────
+            _vault.update_status(task_card_id, "human_working")
+            _update_card(client, channel, card_ts, question_text, "human_working",
+                         thread_ts=thread_ts, asker_id=asker_id)
+            register_active_thread(
+                thread_ts=thread_ts,
+                card_ts=card_ts,
+                channel=channel,
+                question_text=question_text,
+                asker_id=asker_id,
+                task_card_id=task_card_id,
+            )

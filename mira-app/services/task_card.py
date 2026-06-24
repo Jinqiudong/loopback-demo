@@ -23,6 +23,7 @@ def build_task_card(
     thread_ts: Optional[str] = None,
     asker_id: Optional[str] = None,
     vault_hit: bool = False,
+    context_summary: Optional[str] = None,
 ) -> list[dict]:
     task_id = _task_id(thread_ts)
     time_ago = _relative_time(thread_ts)
@@ -43,10 +44,28 @@ def build_task_card(
         blocks.append(_headline("🔍", "Checking Knowledge Vault..."))
 
     elif status == "ai_searching":
-        blocks.append(_headline("🔍", "Searching Knowledge Vault + Slack history..."))
+        blocks.append(_headline("🔍", "Searching Knowledge Vault + Slack history + codebase..."))
+
+    elif status == "direction_check":
+        blocks.append(_headline("🔎", "Found something — does this look right?"))
+        if context_summary:
+            blocks.append({
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"*What Mira found:*\n{context_summary}"},
+            })
+        blocks.append({
+            "type": "context",
+            "elements": [{"type": "mrkdwn",
+                          "text": "Reply *yes* to confirm this direction and loop in a resolver · or clarify what's different"}],
+        })
 
     elif status == "human_working":
         blocks.append(_headline("🆕", "First time this question has been asked"))
+        if context_summary:
+            blocks.append({
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"*Mira's investigation findings:*\n{context_summary}"},
+            })
         blocks.append({
             "type": "context",
             "elements": [{"type": "mrkdwn",
