@@ -1,62 +1,121 @@
 # LoopBack
 
-LoopBack is a Slack-native AI agent that closes the knowledge loop inside teams.
-When someone asks a question in Slack, Mira — LoopBack's AI — checks whether it's
-been answered before, surfaces the best existing answer for confirmation, and once
-confirmed, writes the verified answer back into a shared Knowledge Vault so the
-next person gets an instant reply.
+**Every problem solved becomes organizational memory. Every pattern becomes a product fix.**
 
-**Every problem your organization solves should only ever need to be solved once.**
+---
 
 ## The problem
 
-Teams repeat the same questions over and over in Slack. Answers live in DMs,
-buried threads, or someone's head. Knowledge workers spend ~20% of their workweek
-re-finding information someone else already knew (McKinsey). LoopBack intercepts
-those questions and turns each resolved conversation into reusable, verified knowledge.
+Teams repeat the same questions over and over in Slack. Answers live in DMs, buried threads,
+or someone's head. Knowledge workers spend ~20% of their workweek re-finding information
+someone else already knew (McKinsey). But the deeper problem is invisible: the same question
+asked seven times is a signal that something in the product is broken — and nobody connects
+those dots. LoopBack does.
 
-## How it works
+---
+
+## Mira's three roles
+
+### 1. Support Assistant
+When someone `@Mira` with a question, she works through three tiers — fastest first:
 
 ```
-@Mira how do I request PTO?
+@Mira question
     │
     ▼
-Intent classification (Claude) — question or noise?
-    │ QUESTION
-    ▼
-Knowledge Vault search (semantic, via pgvector)
-    ├─ match found (confidence > 0.85)
-    │       └──► Suggest verified answer → user confirms → done
-    ├─ low confidence (0.7–0.85)
-    │       └──► Ask clarifying question to confirm it's the same problem
+Tier 1: Knowledge Vault (semantic search, pgvector)
+    ├─ confidence > 0.85  → return verified answer instantly
+    ├─ confidence 0.7–0.85 → ask clarifying question first
     └─ no match
             │
             ▼
-    Slack history search (Real-Time Search API) ← in implementation
-            ├─ candidate found → surface + clarify
-            └─ nothing found → escalate to resolver
-                    │
-                    Resolver answers DIRECTLY in thread (Mira listens, never relays)
+Tier 2: Parallel search (three sources simultaneously)
+    ├─ Slack history      (Real-Time Search API)
+    ├─ GitHub MCP         (code, SQL files, schema)
+    └─ Data Dictionary MCP (field definitions, business terms)
+            │
+            ├─ findings assembled → task card enriched with what Mira found
+            │   Mira checks in with requester: "Based on what I found,
+            │   it looks like [X] — is this the right direction?"
+            │   Requester confirms → Mira loops in resolver with full context
+            └─ nothing useful found → escalate directly
                     │
                     ▼
-            Confirmation window (30 min)
-            → Confirmed  → Vault entry marked verified
-            → Silence    → Saved as "Suggested, not yet verified"
-            → Denied     → Back to resolver, old answer preserved in version history
+Tier 3: Escalate to resolver
+    Mira posts task card with all investigation findings included
+    Resolver answers DIRECTLY in thread — Mira listens, never relays
+    Requester gives a signal → Mira writes to Vault automatically
 ```
 
-## Demo
+### 2. Knowledge Guardian
+Every resolved conversation is captured automatically based on requester signals —
+no manual action required from anyone:
 
-The demo follows three acts — each one shows a different part of the knowledge loop.
+```
+Signal 1 (clear confirm: ✅ / "got it" / "that fixed it")
+  → Vault entry written, status: verified
 
-**Act 1 — Cold start (the loop begins)**
-> A question has never been asked before. Mira searches the Vault, finds nothing, and escalates to a resolver. The resolver answers directly in the thread — Mira never relays. Once the exchange settles, Mira follows up, the requester confirms, and the answer is written to the Vault as a verified entry.
+Signal 2 (silence — the most common outcome)
+  → Mira follows up once after 30 min
+  → Still no response → status: "Suggested, not yet verified"
+  → Next user hits the same answer and doesn't deny it → confidence rises → auto-verified
 
-**Act 2 — Vault hit (the loop pays off)**
-> The same question is asked again — in different words. Mira recognizes the intent, retrieves the verified answer from the Vault in seconds, and surfaces it with a confidence score. The resolver is never disturbed. This is what the system is for.
+Signal 3 (explicit denial: "this didn't work")
+  → Back to resolver for another attempt
+  → Old answer pushed to version_history (never deleted)
+  → New answer becomes current
+```
 
-**Act 3 — Knowledge Vault Dashboard**
-> Open App Home to see the growing knowledge base: every verified entry, its confidence score, who owns it, how many times it's been used, and the full resolution history behind it.
+No resolver button clicks. No manual documentation. Knowledge accumulates from conversation.
+
+### 3. Product Manager *(the most novel part)*
+After enough resolved task cards accumulate, Mira analyzes patterns across them — not
+keyword matching, but semantic understanding of what problems keep recurring and what the
+answers reveal about the underlying system.
+
+When Mira detects a pattern worth surfacing, she generates an **Enhancement Proposal**:
+a structured insight card in the Product Owner's Dashboard that explains what she observed
+and what it might mean. The content of each proposal is AI-generated from the actual task
+card data — Mira decides what's worth saying based on what she's learned.
+
+```
+Vault accumulates task cards across multiple resolved questions
+    │
+    ▼
+Mira analyzes patterns (Claude-powered, no predefined templates)
+    │
+    ▼
+Enhancement Proposal posted to Dashboard:
+  What Mira observed, what it might signal, suggested next step
+  Source links → the actual task cards that led here
+  [Approve]  [Reject]  [Defer]
+    │
+    └─ Approved + implemented → Mira DMs original requesters:
+         "Your question contributed to a product improvement."
+```
+
+---
+
+## Demo — three acts
+
+**Act 1 — Cold start** *(Vault empty, Mira investigates)*
+> A BA asks about a data anomaly. Mira finds nothing in the Vault or Slack history, but
+> GitHub MCP and the Data Dictionary surface relevant findings. Mira enriches the task card
+> with what she found and checks in with the BA: *"Based on what I found, does this look
+> like the right direction?"* BA confirms. Mira loops in the DE with full context. DE replies
+> directly to the BA in thread. BA confirms it's resolved. Mira writes the answer to the
+> Vault — verified.
+
+**Act 2 — Vault hit** *(same problem, new person, instant answer)*
+> A different BA asks a semantically similar question. Mira matches it to the verified entry
+> and returns the answer in seconds with confidence score and original owner. The DE is never
+> disturbed.
+
+**Act 3 — PM identity** *(patterns surface as proposals)*
+> Several task cards have accumulated. Mira runs her pattern analysis and posts an Enhancement
+> Proposal to the Product Owner's Dashboard. The proposal is AI-generated from the task card
+> data — Mira surfaces what she noticed and what it might mean. The Product Owner reviews and
+> decides: approve, reject, or defer.
 
 ---
 
@@ -67,44 +126,54 @@ The demo follows three acts — each one shows a different part of the knowledge
 | Finds answers | ✓ | ✓ | ✓ |
 | Verifies answers | ✗ | Manual | Automatic |
 | Zero maintenance | ✓ | ✗ | ✓ |
-| Knowledge has provenance | ✗ | Sometimes | Always |
-| Works where teams already are | ✓ | ✗ | ✓ |
+| Reads your codebase | ✗ | ✗ | ✓ (GitHub MCP) |
+| Turns support into product backlog | ✗ | ✗ | ✓ |
+
+---
 
 ## Implementation status
 
 | Feature | Status |
 |---------|--------|
-| Slack Bolt app, Socket Mode | ✅ Done |
-| Claude intent classification (QUESTION / NOISE) | ✅ Done |
-| Block Kit task card — all 7 lifecycle states | ✅ Done |
-| Confirm / Not Helpful button handlers | ✅ Done |
-| Knowledge Vault client (stub mode for dev) | ✅ Done |
-| Knowledge Vault — embeddings + pgvector search | ⏳ Week 2 (Jie) |
-| Knowledge Vault — 3-signal confidence logic | ⏳ Week 2 (Jie) |
-| Slack Real-Time Search API integration | ⏳ Week 3 |
-| App Home Dashboard | ⏳ Week 3 |
-| Staging deploy + demo recording | ⏳ Week 4 |
+| Slack Bolt app, Socket Mode | ✅ |
+| Claude intent classification | ✅ |
+| Block Kit task card — all 7 lifecycle states | ✅ |
+| Button handlers + resolution detection | ✅ |
+| Real-Time Search API (Slack history) | ✅ |
+| Vault client + 3-signal auto-save | ✅ |
+| Knowledge Vault — pgvector + confidence (Jie) | ✅ code · ⏳ Supabase config |
+| GitHub MCP integration | ⏳ |
+| Data Dictionary MCP | ⏳ |
+| Pre-escalation requester check-in | ⏳ |
+| Enhancement Proposal engine (Claude-powered) | ⏳ |
+| Slack Canvas Dashboard | ⏳ |
+| Railway deploy + demo recording | ⏳ |
+
+---
 
 ## Repository layout
 
 ```
-loopback-demo/
-├── mira-app/        # Slack bot + Claude intent layer — Jinqiu
-└── vault-service/   # Knowledge Vault: storage, embeddings, confidence — Jie
+loopback-demo/     ← this repo (code only)
+├── mira-app/      # Slack bot, Claude, MCP clients, proposal engine — Jinqiu
+└── vault-service/ # Knowledge Vault: embeddings, pgvector, confidence — Jie
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system design and API contract.
-See [mira-app/README.md](mira-app/README.md) for setup and running instructions.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for system design and API contract.
+
+---
 
 ## Tech stack
 
 | Layer | Technology |
 |-------|-----------|
-| Bot framework | Slack Bolt for Python, Socket Mode |
-| Intent classification | Claude API (`claude-sonnet-4-6`) |
+| Bot framework | Slack Bolt for Python |
+| Intent + extraction + proposals | Claude (`claude-sonnet-4-6`) |
 | Semantic search | OpenAI `text-embedding-3-small` + pgvector |
 | Database | Supabase (PostgreSQL) |
 | History search | Slack Real-Time Search API |
-| UI | Slack Block Kit — task cards + App Home Dashboard |
+| Code + schema search | GitHub MCP |
+| Business terms | Data Dictionary MCP |
+| Task card UI | Slack Block Kit |
+| Dashboard | Slack Canvas API |
 | Hosting | Railway |
-

@@ -29,20 +29,27 @@ loopback-demo/
 │   │
 │   ├── handlers/
 │   │   ├── __init__.py
-│   │   └── mention_handler.py         🔵  @Mira event listener
-│   │                                      Flow: classify → draft card → vault search
-│   │                                      → pending_confirm or human_working
+│   │   ├── mention_handler.py         🔵  @Mira listener — full 3-tier search orchestration
+│   │   │                                  Tier 1: Vault → Tier 2: Slack+GitHub+DataDict
+│   │   │                                  → direction_check → Tier 3: human escalation
+│   │   │                                  @Mira analyze → Enhancement Proposal engine
+│   │   ├── action_handler.py          🔵  Button actions: confirm / not helpful
+│   │   ├── resolution_handler.py      🔵  Detects resolver replies in thread → pending_confirm
+│   │   └── direction_handler.py       🔵  Pre-escalation: detects "yes" → escalate with context
 │   │
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── intent.py                  🔵  Claude API call — QUESTION vs NOISE classification
-│   │   ├── task_card.py               🔵  Block Kit builder for all card statuses
-│   │   └── vault_client.py            🔵🟢 THE CONTRACT BOUNDARY ← see section below
-│   │                                      Wraps Jie's 3 API functions.
-│   │                                      Set VAULT_STUB=true to run without the real package.
+│   │   ├── intent.py                  🔵  Claude QUESTION/NOISE classification
+│   │   ├── task_card.py               🔵  Block Kit builder — 8 states incl. direction_check
+│   │   ├── vault_client.py            🔵🟢 THE CONTRACT BOUNDARY ← see section below
+│   │   ├── slack_search.py            🔵  Real-Time Search API (needs SLACK_USER_TOKEN)
+│   │   └── mcp_github.py              🔵  GitHub MCP — reads loopback-analytics repo
+│   │
+│   ├── pm/
+│   │   └── proposal_engine.py         🔵  Claude-powered Enhancement Proposal from Vault patterns
 │   │
 │   └── dashboard/
-│       └── home_view.py               🔵  App Home Dashboard UI (Week 3)
+│       └── home_view.py               🔵  App Home Dashboard (Block Kit, stub → Canvas in Week 3)
 │
 ├── vault-service/                     🟢  JIE'S SIDE — do not edit without checking in
 │   ├── requirements.txt               🟢
@@ -83,16 +90,19 @@ mira-app/services/vault_client.py   ←→   vault-service/api/
          🔵 Jinqiu owns this                  🟢 Jie owns this
 ```
 
-### Three functions, locked 6/22
+### Four functions, locked 6/22
 
 ```python
-# 1. Does a verified or suggested answer already exist?
-search_vault(query_text: str) -> dict
+# 1. Create a task card DB record when question comes in
+create_task_card(requester_id, channel_id, thread_ts, question_raw, question_intent) -> str
 
-# 2. Write a resolved answer into the Vault
-upsert_vault_entry(task_card_id, answer, owner_id, signal) -> dict
+# 2. Does a verified or suggested answer already exist?
+search_vault(query_text: str) -> dict   # returns match_found, entry_id, answer, confidence
 
-# 3. Update a task card's lifecycle status
+# 3. Write a resolved answer into the Vault (call on signal_1/2/3 only)
+upsert_vault_entry(task_card_id, question_canonical, answer, owner_id, signal, ambiguous) -> dict
+
+# 4. Update a task card's lifecycle status
 update_status(task_card_id: str, new_status: str) -> dict
 ```
 
@@ -109,8 +119,12 @@ not a unilateral edit on either side.
 cd mira-app
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # fill in SLACK_BOT_TOKEN, SLACK_APP_TOKEN, ANTHROPIC_API_KEY
-                               # set VAULT_STUB=true until Jie's package is ready
+pip install -e ../vault-service   # once Supabase is configured
+cp .env.example .env
+# Required: SLACK_BOT_TOKEN, SLACK_APP_TOKEN, ANTHROPIC_API_KEY
+# Vault:    SUPABASE_URL, SUPABASE_SERVICE_KEY, OPENAI_API_KEY → then VAULT_STUB=false
+# Search:   SLACK_USER_TOKEN (xoxp-...)
+# GitHub:   GITHUB_TOKEN, GITHUB_ANALYTICS_REPO=Jinqiudong/loopback-analytics
 python app.py
 ```
 

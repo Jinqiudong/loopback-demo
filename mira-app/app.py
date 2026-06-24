@@ -21,8 +21,30 @@ register_mention_handler(app)
 register_action_handlers(app)
 register_home_handler(app)
 
+# Proposal button actions (approve / defer / reject)
+@app.action("proposal_approve")
+def handle_proposal_approve(ack, body, say):
+    ack()
+    say(channel=body["channel"]["id"],
+        thread_ts=body["message"].get("thread_ts", body["message"]["ts"]),
+        text="✅ Enhancement Proposal approved. Adding to the product backlog.")
+
+@app.action("proposal_defer")
+def handle_proposal_defer(ack, body, say):
+    ack()
+    say(channel=body["channel"]["id"],
+        thread_ts=body["message"].get("thread_ts", body["message"]["ts"]),
+        text="⏳ Enhancement Proposal deferred. Mira will resurface it next cycle.")
+
+@app.action("proposal_reject")
+def handle_proposal_reject(ack, body, say):
+    ack()
+    say(channel=body["channel"]["id"],
+        thread_ts=body["message"].get("thread_ts", body["message"]["ts"]),
+        text="❌ Enhancement Proposal rejected and noted.")
+
+
 if __name__ == "__main__":
-    # Get bot's own user ID so resolution_handler can filter out Mira's own messages
     bot_info = app.client.auth_test()
     bot_user_id = bot_info["user_id"]
 

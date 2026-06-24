@@ -79,6 +79,39 @@ open-ended engineering project. Act accordingly:
 
 ---
 
+## Product version — v2
+
+**Slogan (v2):** *Every problem solved becomes organizational memory. Every pattern becomes a product fix.*
+
+LoopBack v2 extends the original support-assistant design with:
+
+**GitHub MCP + Data Dictionary MCP** — Tier 2 search now runs three sources in parallel:
+Slack history (Real-Time Search API), GitHub (code/SQL/schema), and the Data Dictionary
+(field definitions). Mira reads the actual SQL files and field definitions — not keywords.
+
+**Pre-escalation requester check-in** — when Tier 2 finds useful findings, Mira enriches
+the task card and checks in with the requester before looping in the resolver: *"Based on
+what I found, does this look like the right direction?"* Requester confirms → Mira brings
+in the resolver with full context. Reduces unnecessary escalations.
+
+**Auto-save via 3 signals (unchanged from v1)** — NO DM to resolver, no button clicks.
+Mira handles Vault writes automatically based on requester signals only. Resolvers do
+nothing extra. Signal 1 → verified. Signal 2 (silence) → unconfirmed. Signal 3 (denial)
+→ escalate + version_history preserved.
+
+**Enhancement Proposals (Claude-powered, no templates)** — after enough task cards
+accumulate, Claude analyzes patterns semantically and generates AI-written proposals.
+The content is determined by the LLM based on what it actually sees in the task cards —
+not predefined rules or hardcoded categories. Product Owner sees genuine AI insight.
+
+**Slack Canvas Dashboard** — replaces Block Kit App Home. Real tables, rich text, structured
+sections. Dual-perspective: Requester view + Resolver/PM view (open tasks, Vault health,
+pending proposals with [Approve] [Reject] [Defer]).
+
+**Repo split** — `loopback-demo` contains only code. Product docs (DESIGN.md, implementation
+plan, project story, diagrams) live in a separate product repo. CLAUDE.md and ARCHITECTURE.md
+stay in the code repo as they're directly relevant to building and evaluating the code.
+
 ## Where to find things
 
 - **`docs/implementation/repo-structure.md`** — what lives where, who owns what, the contract
@@ -93,12 +126,11 @@ open-ended engineering project. Act accordingly:
   Sections marked TBD or "update as build progresses" are the ones to fill in.
 - **`ARCHITECTURE.md`** — product-level architecture for judges and developers: what the
   system is, why it exists, component diagram, full API contract, tech stack.
-- **`mira-app/`** — the conversational layer (Slack Bolt, intent
-  classification, task cards, dashboard). This is Jinqiu's side.
-- **`vault-service/`** — storage, embeddings, semantic search, confidence
-  scoring, version history. This is the teammate's side. Treat the API
-  contract in `docs/implementation/DESIGN.md` as fixed when working in `mira-app/` —
-  don't assume internals of how the Vault is implemented.
+- **`mira-app/`** — the conversational layer (Slack Bolt, intent classification, task cards,
+  MCP clients, Enhancement Proposal engine, Canvas Dashboard). This is Jinqiu's side.
+- **`vault-service/`** — storage, embeddings, semantic search, confidence scoring, version
+  history. This is Jie's side. Treat the API contract in `docs/implementation/DESIGN.md`
+  as fixed when working in `mira-app/` — don't assume internals of how the Vault is built.
 
 ---
 
@@ -236,14 +268,14 @@ the human to decide.
 **Track:** New Slack Agent (First: $8k, Second: $4k)
 
 **Specialty prizes to also target (each $2,000):**
-- Best UX — our Block Kit task card + Dashboard is the demo vehicle for this
-- Most Innovative Slack Agent — the confidence loop + verification mechanism
-- Best Technological Implementation — multi-service arch + Claude + pgvector + RTS API
+- Best UX — Canvas Dashboard + task card lifecycle is the demo vehicle
+- Most Innovative — Enhancement Proposal engine (PM identity) + confidence accumulation
+- Best Technological Implementation — Claude + pgvector + Real-Time Search + GitHub MCP + Data Dictionary MCP
 
-**Required technology — must use at least ONE, cite all that apply:**
-- ✅ Slack AI capabilities → Claude-powered intent classification + extraction
-- ❓ MCP server integration → confirm with team whether to add before submission
-- ✅ Real-Time Search API → Mira's Slack history search step (Week 2 — must be implemented)
+**Required technology — all three covered in v2:**
+- ✅ Slack AI capabilities → Claude intent classification + answer extraction
+- ✅ MCP server integration → GitHub MCP + Data Dictionary MCP (Tier 2 search)
+- ✅ Real-Time Search API → Slack history search (Tier 2 search)
 
 **What Slack actually wants (read before building anything):**
 Slack (owned by Salesforce) is competing against Microsoft Teams + Copilot.
