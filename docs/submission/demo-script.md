@@ -10,7 +10,7 @@ Demo scenario: approval rate anomaly — a real data product issue Mira investig
 
 **Goal:** Show the full investigation → direction check → resolution cycle.
 
-1. Jinqiu (as BA): `@Mira our approval rate dropped 40% — what's going on?`
+1. Jinqiu (as BA): `@Mira we're seeing an unexpected drop in our approval rate this week — can you help me investigate?`
 2. Show card: Draft → **Searching** (ai_searching — "Searching Vault + Slack + codebase...")
 3. Card updates to **direction_check** — Mira posts her findings in the thread:
    > *"Based on what I found: `product_type` is nullable in `raw_applications` — applications with NULL product_type are excluded from the approval rate calculation. This matches the known issue #003 in your analytics repo. Does this look like the right direction?"*
