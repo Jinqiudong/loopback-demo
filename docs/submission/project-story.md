@@ -60,130 +60,108 @@ That's what LoopBack is built to do.
 
 ## What it does
 
-LoopBack is built around two things working together: Mira, an AI
-teammate you @ in Slack just like a colleague, and the Knowledge Vault,
-the growing memory Mira builds from every conversation she and a human
-resolve together. Mira doesn't sit between the requester and the
-resolver — they can talk to each other directly, exactly as they always
-have. What she does is work alongside that conversation, stepping in
-only where she can actually help.
+LoopBack is built around three things working together: Mira — the AI colleague you `@`
+in Slack, the Knowledge Vault — the growing verified memory she builds from every resolved
+conversation, and her PM identity — the ability to look across all of those conversations
+and surface what they collectively reveal about the product.
 
 **[Diagram 1: LoopBack Mechanism Loop — placeholder]**
 
-When someone asks a question, Mira doesn't search keywords — she
-understands intent first. She checks the Knowledge Vault for a verified
-answer. If one exists, she returns it instantly, with the original
-owner's name, a confidence score, and a timestamp, and the person who
-solved it the first time is never disturbed again. If nothing exists
-yet, she searches Slack's history for anything close, summarizes what
-she finds, and asks a clarifying question if needed to confirm it's
-actually the same problem. If there's truly nothing to go on — a cold
-start — she escalates: posting the task card to the resolver, who
-replies directly to the requester in the same thread, with Mira
-listening in the background, watching how the question gets resolved,
-taking notes, and following up with the requester to see if the issue
-is resolved, the conversation can be ended, and the knowledge can be
-verified and made ready for the next requester.
+When someone asks a question, Mira doesn't search keywords — she understands intent first.
+She works through three tiers, always in the same order.
 
-Once an answer is given, whether pulled from history or worked out fresh
-with a resolver — Mira checks back in. She asks the person who asked the
-question whether it actually worked. A clear yes becomes a verified
-answer right away. Silence triggers a gentle follow-up; if it's still
-unconfirmed after that, the answer gets saved anyway, offered to the
-next person as a suggestion rather than a fact, waiting for someone to
-be the first to confirm it. A clear no sends the question back to the
-resolver, and whatever they resolve becomes the new answer — with the
-old one preserved in a version history, so nothing is ever silently
-overwritten.
+**Tier 1 — Knowledge Vault.** The fastest and cheapest check. If a verified answer exists,
+Mira returns it instantly with the original owner's name, a confidence score, and a
+timestamp. The person who solved it the first time is never disturbed again.
 
-Every verified answer becomes a card in the Knowledge Vault: the
-question, the answer, who owns it, when it was last confirmed, and how
-confident the system is that it still holds. The next time someone asks
-— even in completely different words — Mira recognizes the intent and
-returns the answer in seconds.
+**Tier 2 — Parallel search across three sources.** If the Vault has no answer, Mira
+searches simultaneously: Slack's history (via the Real-Time Search API), your codebase
+(via GitHub MCP), and your data dictionary (via Data Dictionary MCP). She reads the actual
+SQL files, schema definitions, and field ownership documentation — not keywords. When she
+finds something relevant, she enriches the task card with her findings and checks in with
+the requester: *"Based on what I found, does this look like the right direction?"* Only
+after the requester confirms does she loop in the resolver — with full context already
+assembled. This prevents unnecessary escalations and ensures resolvers start from
+understanding, not from scratch.
+
+**Tier 3 — Human escalation.** If neither the Vault nor Tier 2 search yields anything,
+Mira escalates: posting the task card to a resolver, who replies directly to the requester
+in the same thread. Mira listens in the background. She never relays.
+
+Once an answer is given, Mira's three-signal mechanism captures what happens next.
+A clear confirmation immediately verifies the answer. Silence — the most common outcome
+in real workplace conversations — triggers a gentle follow-up; if still unanswered, the
+answer is saved as "Suggested, not yet verified," waiting for the next person to be the
+first to confirm it. A clear denial routes back to the resolver, with the old answer
+preserved in version history so nothing is ever silently overwritten.
+
+Every verified answer becomes a Knowledge Vault entry. Every entry carries the full trail:
+the original question, what Mira searched, who answered, and every signal that built the
+trust score. The next time anyone asks — even in completely different words — Mira
+recognizes the intent and returns the answer in seconds.
+
+**The PM identity.** After enough questions accumulate, Mira goes further. She analyzes
+the patterns across resolved task cards — not what was most commonly asked, but what
+the pattern of questions reveals about the underlying product. She generates Enhancement
+Proposals: AI-written insights about what keeps recurring and why, surfaced in the
+Knowledge Vault Dashboard for Product Owners to review and act on.
+
+**[Diagram 2: Resolution Cycle — placeholder]**
 
 ---
 
 ## How we built it
 
 LoopBack runs on Slack's Bolt framework for Python, deployed on Railway.
-Claude powers everything that requires real understanding — intent
-classification, generating clarifying questions, and extracting an
-answer in the resolver's own words rather than an AI paraphrase. For
-semantic search, we use OpenAI's text-embedding-3-small to generate
-embeddings, stored in Supabase with pgvector, so Mira can recognize when
-two differently worded questions mean the same thing. Slack's
-Real-Time Search API connects Mira to existing Slack history when the
-Vault doesn't have an answer yet.
+All three required technologies are used as first-class components, not checkboxes.
 
-Every UI surface in LoopBack is built with Slack's own Block Kit — no
-external frontend, nothing for people to install or open elsewhere. The
-task card itself is a Block Kit message that updates in place as it
-moves through its lifecycle: draft, searching, waiting on a resolver,
-pending confirmation, verified. People watch the same card change state
-rather than receiving a stream of separate bot messages. The Knowledge
-Vault Dashboard takes that further, living in App Home — every entry
-renders as a card with its current answer, trust status, owner, and
-usage count, and tapping into it expands the full task card history
-behind it: what was searched, who was looped in, and every state it
-passed through. We built it this way deliberately — the dashboard had to
-live where the work already happens, or people simply wouldn't open it.
+**Claude** powers everything that requires real understanding: intent classification,
+synthesising Tier 2 search findings into concise bullet points for the task card,
+generating the confirmation question Mira asks before looping in a resolver, and
+writing Enhancement Proposals from Knowledge Vault patterns. The answer that goes into
+the Vault is always the resolver's original words — not an AI paraphrase.
 
-One architectural decision mattered more than any single API call: Mira
-never relays messages between the requester and the resolver. She checks
-the Vault and Slack history because that's cheaper and faster than
-waiting on a human, but the moment a real conversation is needed, she
-steps back and lets it happen directly. We built her listening
-capability — not a relay capability — specifically so escalation never
-feels like talking to a bot first and a person second.
+**Slack's Real-Time Search API** is Mira's second knowledge source. When the Vault has
+no answer, Mira searches the workspace's entire message history for relevant conversations
+and surfaces the most useful result with a link back to the original thread.
 
-The harder problem wasn't the AI call — it was designing how a system
-earns the right to tell someone "this answer is trustworthy." Diagram 2:
-Resolution Cycle illustrates the full resolution cycle and verification
-mechanism, modeled on how people actually behave rather than how we
-wished they'd behave. Diagram 3: Task Card by Stage shows what that
-mechanism looks like in practice — every stage made visible, so the path
-to an answer is never a black box.
+**GitHub MCP and Data Dictionary MCP** extend Mira's reach into the codebase. When a
+question touches a data anomaly, a schema issue, or a field definition, Mira reads the
+actual SQL files and field ownership documentation from your analytics repo. She finds
+root causes, not just keywords. The same principle applies to the Data Dictionary: Mira
+reads what each field means, who owns it, and what it's required for — and brings that
+context directly into the task card before a human is ever looped in.
 
-**[Diagram 2: Resolution Cycle — placeholder]**
 **[Diagram 3: Task Card by Stage — placeholder]**
 
-A clear confirmation verifies an answer immediately. Silence — the most
-common outcome in real workplace conversations — isn't treated as
-failure; Mira follows up once, and if it's still unanswered, the entry
-is saved as "Suggested, not yet verified" rather than buried. We chose
-that wording deliberately: calling something "unconfirmed" makes people
-hesitant to try it, so we designed the language to invite verification
-instead of implying it's broken. Confidence accumulates across users
-over time instead of depending on one person responding in a window —
-the same way trust actually builds on a real team. A clear denial routes
-back to the resolver, and the new answer overwrites the old one in
-display while keeping a full version history underneath, so nothing is
-ever silently lost.
+The task card is a single Block Kit message that mutates in place through seven states.
+No new messages, no notification spam — the same card changes as the situation changes.
+When Mira finds something in Tier 2 search, the card updates to show her findings and
+asks the requester to confirm direction. When a resolver answers, the card captures their
+words and surfaces them for confirmation. When the answer is verified, the card reflects
+that trust permanently.
 
-All of this — every status, every confirmation, every version —
-surfaces in one place: the Knowledge Vault Dashboard. It's not a
-separate tool; it lives inside Slack. Every entry shows its current
-answer alongside its trust level, its owner, and how many people it's
-already helped, and it can be expanded to reveal the entire history
-behind it — the original question, what was searched, who was looped
-in, and every state the task card passed through to get there. We
-designed it this way on purpose: a knowledge base that only shows the
-final answer asks people to trust it blindly. One that shows its work
-earns that trust instead.
+The Knowledge Vault Dashboard lives in Slack Canvas — not a web page, not a sidebar,
+but a rich Slack-native document that updates as entries are written. Every entry shows
+its confidence score, owner, usage count, and the full resolution trail behind it. The
+Enhancement Proposal section gives Product Owners a structured view of what Mira has
+noticed across all resolved questions, with one-click approve / defer / reject actions.
+We chose Canvas specifically because a dashboard that requires leaving Slack is a
+dashboard that doesn't get used.
 
 **[Diagram 4: Knowledge Vault Dashboard — placeholder]**
 
-Week 1 of implementation is complete. On Mira's side: a Slack Bolt app
-listening for `@Mira` mentions, Claude-powered intent classification
-(question vs. noise), a live-updating Block Kit task card, and a
-`VaultClient` layer that moves the card through its full lifecycle —
-draft, searching, and either surfacing a suggested answer with Confirm /
-Not Helpful buttons, or flagging the question for a human teammate. The
-build split is working: Mira's conversational layer and the Knowledge
-Vault's storage layer are being developed in parallel against a fixed
-three-function API contract, with stub mode keeping Mira runnable
-before the real Vault package is connected.
+One architectural decision mattered more than any single API call: Mira never relays.
+She searches because that's faster than waiting on a human. But the moment a real
+conversation is needed, she steps back entirely. The requester and resolver talk directly,
+in the same thread, exactly as they would without Mira. This was a hard constraint, not
+a default — and enforcing it required more careful state machine design than anything
+else in the build.
+
+The full resolution cycle — cold start through Enhancement Proposal — is implemented
+and demonstrated end-to-end. The build is split between Mira's conversational layer and
+the Knowledge Vault's storage and retrieval layer, developed in parallel against a fixed
+four-function API contract.
 
 ---
 
