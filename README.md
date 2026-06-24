@@ -1,62 +1,115 @@
 # LoopBack
 
-LoopBack is a Slack-native AI agent that closes the knowledge loop inside teams.
-When someone asks a question in Slack, Mira — LoopBack's AI — checks whether it's
-been answered before, surfaces the best existing answer for confirmation, and once
-confirmed, writes the verified answer back into a shared Knowledge Vault so the
-next person gets an instant reply.
+LoopBack is a Slack-native AI agent that closes the knowledge loop inside teams — and then
+goes further, turning repeated support questions into product improvement proposals.
 
 **Every problem your organization solves should only ever need to be solved once.**
 
+---
+
 ## The problem
 
-Teams repeat the same questions over and over in Slack. Answers live in DMs,
-buried threads, or someone's head. Knowledge workers spend ~20% of their workweek
-re-finding information someone else already knew (McKinsey). LoopBack intercepts
-those questions and turns each resolved conversation into reusable, verified knowledge.
+Teams repeat the same questions over and over in Slack. Answers live in DMs, buried threads,
+or someone's head. Knowledge workers spend ~20% of their workweek re-finding information
+someone else already knew (McKinsey). But the deeper problem is that no one connects the dots:
+the same question asked seven times is a signal that something in the product is broken.
+LoopBack captures both the answer *and* the pattern.
 
-## How it works
+---
+
+## Mira's three roles
+
+### 1. Support Assistant
+When someone `@Mira` with a question, she works through three tiers — fastest first:
 
 ```
-@Mira how do I request PTO?
+@Mira why did approval rate drop 40%?
     │
     ▼
-Intent classification (Claude) — question or noise?
-    │ QUESTION
-    ▼
-Knowledge Vault search (semantic, via pgvector)
-    ├─ match found (confidence > 0.85)
-    │       └──► Suggest verified answer → user confirms → done
-    ├─ low confidence (0.7–0.85)
-    │       └──► Ask clarifying question to confirm it's the same problem
+Tier 1: Knowledge Vault (semantic search, pgvector)
+    ├─ confidence > 0.85  → return verified answer instantly
+    ├─ confidence 0.7–0.85 → ask clarifying question first
     └─ no match
             │
             ▼
-    Slack history search (Real-Time Search API) ← in implementation
+Tier 2: Parallel search across three sources
+    ├─ Slack history (Real-Time Search API)
+    ├─ GitHub MCP (code, SQL files, schema)
+    └─ Data Dictionary MCP (field definitions, business terms)
+            │
             ├─ candidate found → surface + clarify
-            └─ nothing found → escalate to resolver
-                    │
-                    Resolver answers DIRECTLY in thread (Mira listens, never relays)
+            └─ nothing found
                     │
                     ▼
-            Confirmation window (30 min)
-            → Confirmed  → Vault entry marked verified
-            → Silence    → Saved as "Suggested, not yet verified"
-            → Denied     → Back to resolver, old answer preserved in version history
+Tier 3: Escalate to resolver
+    Mira posts task card with all investigation findings so far
+    Resolver answers DIRECTLY in thread — Mira listens, never relays
+    Mira follows up: "Did this resolve your issue?"
 ```
 
-## Demo
+### 2. Knowledge Guardian
+Every resolved conversation is an opportunity to build institutional memory:
 
-The demo follows three acts — each one shows a different part of the knowledge loop.
+```
+Resolution detected (✅ reaction / "got it" / explicit confirm)
+    │
+    ▼
+Mira DMs the resolver:
+  "Looks like [User] confirmed your fix worked.
+   Want to save this for the next person?"
+  [Save it]  [Skip]
+    │
+    ├─ Save it → Vault entry, status: verified
+    └─ No response (30 min) → Vault entry, status: "Suggested, not yet verified"
+         └─ Future users confirm it works → confidence rises → auto-verified
+```
 
-**Act 1 — Cold start (the loop begins)**
-> A question has never been asked before. Mira searches the Vault, finds nothing, and escalates to a resolver. The resolver answers directly in the thread — Mira never relays. Once the exchange settles, Mira follows up, the requester confirms, and the answer is written to the Vault as a verified entry.
+Old answers are never deleted — `signal_3` (denial) pushes them into `version_history`
+and the new answer takes over, preserving full audit trail.
 
-**Act 2 — Vault hit (the loop pays off)**
-> The same question is asked again — in different words. Mira recognizes the intent, retrieves the verified answer from the Vault in seconds, and surfaces it with a confidence score. The resolver is never disturbed. This is what the system is for.
+### 3. Product Manager *(v2 — the most novel part)*
+After enough resolved questions accumulate, Mira analyzes patterns and generates
+**Enhancement Proposals** — product backlog cards derived from support data:
 
-**Act 3 — Knowledge Vault Dashboard**
-> Open App Home to see the growing knowledge base: every verified entry, its confidence score, who owns it, how many times it's been used, and the full resolution history behind it.
+```
+Vault accumulates 5+ questions pointing to the same root cause
+    │
+    ▼
+Mira identifies: this is a product gap, not a one-off support problem
+    │
+    ▼
+Enhancement Proposal posted to Product Owner's Dashboard:
+  ┌──────────────────────────────────────────────────────┐
+  │ Enhancement Proposal                                  │
+  │ Source: 7 related user questions (links)              │
+  │ Finding: product_type field missing → approval rate   │
+  │          calculations wrong, asked 7 times            │
+  │ Suggestion: add product_type as NOT NULL in schema    │
+  │ Projected impact: ~60% fewer DATA_QUALITY requests    │
+  │ [Approve]  [Reject]  [Defer]                         │
+  └──────────────────────────────────────────────────────┘
+    │
+    └─ Approved + implemented → Mira DMs the original requesters:
+         "You asked about approval rate in March.
+          Based on your feedback, we fixed the product_type schema issue.
+          This won't happen again."
+```
+
+---
+
+## Demo — three acts
+
+**Act 1 — Cold start** *(Vault empty, MCP finds the clue)*
+> BA asks: *"Why did our approval rate drop 40%?"*
+> Mira searches the Vault (empty), Slack history (nothing), then GitHub MCP — finds the `da_approval_metrics.sql` query and Data Dictionary showing `product_type` is `required for approval logic` but has massive NULLs in `raw_applications`.
+> Mira escalates to DE with her findings. DE confirms and replies directly to BA. Mira asks DE to save it. DE clicks Save. Vault entry written, `verified`.
+
+**Act 2 — Vault hit** *(same problem, new person, instant answer)*
+> New BA asks: *"Why is my approval rate so low?"*
+> Mira matches semantically, returns the verified answer in seconds with confidence score and original owner. DE is never disturbed.
+
+**Act 3 — PM identity** *(patterns become proposals)*
+> Five approval-rate questions have accumulated. Mira posts an Enhancement Proposal to the Product Owner's Dashboard: add `product_type` as NOT NULL. Owner approves, DE implements. Mira DMs the original requesters: *"Your feedback drove this fix."*
 
 ---
 
@@ -67,44 +120,58 @@ The demo follows three acts — each one shows a different part of the knowledge
 | Finds answers | ✓ | ✓ | ✓ |
 | Verifies answers | ✗ | Manual | Automatic |
 | Zero maintenance | ✓ | ✗ | ✓ |
-| Knowledge has provenance | ✗ | Sometimes | Always |
-| Works where teams already are | ✓ | ✗ | ✓ |
+| Reads your codebase | ✗ | ✗ | ✓ (GitHub MCP) |
+| Turns support into product backlog | ✗ | ✗ | ✓ |
+| Closes the loop with users | ✗ | ✗ | ✓ |
+
+---
 
 ## Implementation status
 
 | Feature | Status |
 |---------|--------|
 | Slack Bolt app, Socket Mode | ✅ Done |
-| Claude intent classification (QUESTION / NOISE) | ✅ Done |
+| Claude intent classification | ✅ Done |
 | Block Kit task card — all 7 lifecycle states | ✅ Done |
-| Confirm / Not Helpful button handlers | ✅ Done |
-| Knowledge Vault client (stub mode for dev) | ✅ Done |
-| Knowledge Vault — embeddings + pgvector search | ⏳ Week 2 (Jie) |
-| Knowledge Vault — 3-signal confidence logic | ⏳ Week 2 (Jie) |
-| Slack Real-Time Search API integration | ⏳ Week 3 |
-| App Home Dashboard | ⏳ Week 3 |
-| Staging deploy + demo recording | ⏳ Week 4 |
+| Button handlers (confirm / not helpful) | ✅ Done |
+| Resolution detection (listens for resolver replies) | ✅ Done |
+| Vault client + stub mode | ✅ Done |
+| Real-Time Search API (Slack history) | ✅ Done |
+| Knowledge Vault — embeddings + pgvector (Jie) | ✅ Done (needs Supabase config) |
+| Knowledge Vault — 3-signal confidence logic (Jie) | ✅ Done (needs Supabase config) |
+| GitHub MCP integration | ⏳ Week 2 |
+| Data Dictionary MCP | ⏳ Week 2 |
+| DM resolver "Want to save this?" | ⏳ Week 2 |
+| Enhancement Proposal generation | ⏳ Week 2–3 |
+| Slack Canvas Dashboard | ⏳ Week 3 |
+| Railway deploy + demo recording | ⏳ Week 4 |
+
+---
 
 ## Repository layout
 
 ```
 loopback-demo/
-├── mira-app/        # Slack bot + Claude intent layer — Jinqiu
-└── vault-service/   # Knowledge Vault: storage, embeddings, confidence — Jie
+├── mira-app/        # Slack bot, Claude intent, task cards, MCP — Jinqiu
+└── vault-service/   # Knowledge Vault: embeddings, pgvector, confidence — Jie
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system design and API contract.
-See [mira-app/README.md](mira-app/README.md) for setup and running instructions.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for system design and API contract.
+See [mira-app/README.md](mira-app/README.md) for setup instructions.
+
+---
 
 ## Tech stack
 
 | Layer | Technology |
 |-------|-----------|
 | Bot framework | Slack Bolt for Python, Socket Mode |
-| Intent classification | Claude API (`claude-sonnet-4-6`) |
+| Intent + extraction | Claude API (`claude-sonnet-4-6`) |
 | Semantic search | OpenAI `text-embedding-3-small` + pgvector |
 | Database | Supabase (PostgreSQL) |
 | History search | Slack Real-Time Search API |
-| UI | Slack Block Kit — task cards + App Home Dashboard |
+| Code + schema search | GitHub MCP |
+| Business terms | Data Dictionary MCP |
+| Task card UI | Slack Block Kit |
+| Dashboard | Slack Canvas API |
 | Hosting | Railway |
-

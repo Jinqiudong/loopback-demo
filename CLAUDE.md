@@ -79,6 +79,34 @@ open-ended engineering project. Act accordingly:
 
 ---
 
+## Product version — v2
+
+LoopBack v2 extends the original support-assistant design with two major additions:
+
+**GitHub MCP + Data Dictionary MCP** — Tier 2 search now runs three sources in parallel:
+Slack history (Real-Time Search API), GitHub (code/SQL/schema), and the Data Dictionary
+(field definitions). This means Mira can find the root cause of a data issue by reading
+the actual SQL file, not just searching for keywords.
+
+**Mira as Product Manager** — after enough questions accumulate in the Vault, Mira analyzes
+patterns and generates Enhancement Proposals: structured backlog cards with source questions,
+root cause, suggested fix, and projected impact. Product Owners approve/reject/defer in the
+Canvas Dashboard. When a fix ships, Mira DMs the original requesters to close the loop.
+
+**Slack Canvas Dashboard** — replaces Block Kit App Home. Canvas supports real tables, rich
+text, and structured sections. Dual-perspective: Requester view (my questions, my feedback's
+impact) and Resolver/PM view (open tasks, Vault health, pending proposals).
+
+**DM to resolver** — instead of auto-saving on button click, Mira DMs the resolver after
+a resolution is detected: *"Want to save this for the next person?"*. This is more natural
+and gives the resolver agency over what goes into the Vault.
+
+**Demo scenario** — the concrete demo is the approval rate drop (40%) caused by a missing
+`product_type` field. Mira finds the root cause via GitHub MCP (reads `da_approval_metrics.sql`
++ Data Dictionary), escalates to DE, the fix gets saved to Vault, and three months later a
+new BA gets the answer instantly. Act 3: the accumulated pattern generates an Enhancement
+Proposal to add `product_type` as NOT NULL in schema.
+
 ## Where to find things
 
 - **`docs/implementation/repo-structure.md`** — what lives where, who owns what, the contract
@@ -93,12 +121,11 @@ open-ended engineering project. Act accordingly:
   Sections marked TBD or "update as build progresses" are the ones to fill in.
 - **`ARCHITECTURE.md`** — product-level architecture for judges and developers: what the
   system is, why it exists, component diagram, full API contract, tech stack.
-- **`mira-app/`** — the conversational layer (Slack Bolt, intent
-  classification, task cards, dashboard). This is Jinqiu's side.
-- **`vault-service/`** — storage, embeddings, semantic search, confidence
-  scoring, version history. This is the teammate's side. Treat the API
-  contract in `docs/implementation/DESIGN.md` as fixed when working in `mira-app/` —
-  don't assume internals of how the Vault is implemented.
+- **`mira-app/`** — the conversational layer (Slack Bolt, intent classification, task cards,
+  MCP clients, Enhancement Proposal engine, Canvas Dashboard). This is Jinqiu's side.
+- **`vault-service/`** — storage, embeddings, semantic search, confidence scoring, version
+  history. This is Jie's side. Treat the API contract in `docs/implementation/DESIGN.md`
+  as fixed when working in `mira-app/` — don't assume internals of how the Vault is built.
 
 ---
 
@@ -236,14 +263,14 @@ the human to decide.
 **Track:** New Slack Agent (First: $8k, Second: $4k)
 
 **Specialty prizes to also target (each $2,000):**
-- Best UX — our Block Kit task card + Dashboard is the demo vehicle for this
-- Most Innovative Slack Agent — the confidence loop + verification mechanism
-- Best Technological Implementation — multi-service arch + Claude + pgvector + RTS API
+- Best UX — Canvas Dashboard + task card lifecycle is the demo vehicle
+- Most Innovative — Enhancement Proposal engine (PM identity) + confidence accumulation
+- Best Technological Implementation — Claude + pgvector + Real-Time Search + GitHub MCP + Data Dictionary MCP
 
-**Required technology — must use at least ONE, cite all that apply:**
-- ✅ Slack AI capabilities → Claude-powered intent classification + extraction
-- ❓ MCP server integration → confirm with team whether to add before submission
-- ✅ Real-Time Search API → Mira's Slack history search step (Week 2 — must be implemented)
+**Required technology — all three covered in v2:**
+- ✅ Slack AI capabilities → Claude intent classification + answer extraction
+- ✅ MCP server integration → GitHub MCP + Data Dictionary MCP (Tier 2 search)
+- ✅ Real-Time Search API → Slack history search (Tier 2 search)
 
 **What Slack actually wants (read before building anything):**
 Slack (owned by Salesforce) is competing against Microsoft Teams + Copilot.

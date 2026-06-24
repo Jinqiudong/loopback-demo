@@ -244,17 +244,47 @@ Returns: { success: boolean, updated_at: string }
 
 ---
 
+## v2 additions (read before building anything new in mira-app)
+
+### GitHub MCP + Data Dictionary MCP (Tier 2 search)
+When the Vault has no match, Mira searches three sources in parallel. GitHub MCP reads
+code files, SQL queries, and schema definitions. Data Dictionary MCP provides field
+definitions and business terms. Both run alongside the Real-Time Search API in Tier 2.
+Implemented in `mira-app/services/mcp_github.py` and `mcp_data_dict.py` (Week 2).
+
+### DM to resolver ("Want to save this?")
+After resolution is detected, Mira does NOT auto-save. Instead, she DMs the resolver:
+*"Looks like [User] confirmed your fix worked. Want to save this for the next person?"*
+This is more natural than a button and gives the resolver agency over Vault quality.
+`resolution_handler.py` sends the DM; a new `dm_action_handler.py` handles [Save it].
+
+### Enhancement Proposal engine (Mira as PM)
+`mira-app/pm/proposal_engine.py` — analyzes Vault entries to find patterns:
+- Same root cause cited in 3+ questions
+- Same table/field appearing in multiple support questions
+- High escalation rate on a category → signals Vault cannot auto-answer it
+
+When a pattern is detected, Mira generates a structured proposal card in the Canvas
+Dashboard with source questions, root cause, suggested fix, and projected impact.
+
+### Slack Canvas Dashboard
+Replaces Block Kit App Home. `mira-app/dashboard/canvas_view.py` uses the Canvas API
+(`conversations.canvases.create`, `canvases.sections.lookup`, `canvases.edit`) to render
+real tables and rich text. Two sections: Requester view + Resolver/PM view.
+
+### Notification DM to original requesters
+When an Enhancement Proposal is approved and the fix ships, Mira DMs each user who
+originally asked a related question. Closes the loop: their feedback drove the fix.
+
+---
+
 ## Current build status
 
-- ✅ Week 1, Day 1-2: Slack Bolt skeleton, intent classification (QUESTION/NOISE),
-  draft-status task card.
-- ✅ Week 1, Day 3-5: VaultClient wrapper + stub mode; mention handler updated to full
-  draft → ai_searching → pending_confirm / human_working flow; task card renders search
-  results and Confirm / Not Helpful buttons. API signatures pending 6/22 alignment meeting.
-- ⏳ Week 2 (6/26–7/6): Vault mechanism — full three-signal logic, confidence
-  accumulation, version history, 30-min timer + follow-up.
-- ⏳ Week 3 (7/6–7/9): Integration sprint, Dashboard (App Home), task card polish,
-  seed data.
+- ✅ Week 1, Day 1-2: Slack Bolt skeleton, intent classification, draft task card.
+- ✅ Week 1, Day 3-5: VaultClient + stub mode, full card lifecycle, button handlers.
+- ✅ Week 1, Day 6+: Resolution detection, Real-Time Search API, App Home Dashboard (Block Kit), clarifying question flow, bug fixes. Vault merged (Jie). Full cold-start cycle demonstrated end-to-end.
+- ⏳ Week 2 (6/26–7/6): GitHub MCP + Data Dictionary MCP, DM to resolver flow, Enhancement Proposal engine skeleton. Jie: Supabase config, real Vault live.
+- ⏳ Week 3 (7/6–7/9): Canvas Dashboard, Enhancement Proposal UI, integration sprint, seed data, staging deploy.
 - ⏳ Week 4 (7/10–7/13): Demo recording, Devpost submission.
 
 See `implementation-plan.md` (same folder) for the day-by-day breakdown.
