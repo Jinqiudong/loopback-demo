@@ -46,52 +46,59 @@ blocking the other.
 - [x] Draft task card Block Kit template (draft status only)
 
 #### Day 1–2 (6/20–6/21) — Jie: Vault skeleton
-- [ ] Create Supabase project, enable pgvector extension
-- [ ] Run CREATE TABLE statements for `task_cards` and `vault_entries`
-- [ ] Draft the API contract: `search_vault`, `upsert_vault_entry`, `update_status`
+- [x] Create Supabase project, enable pgvector extension
+- [x] Run CREATE TABLE statements for `task_cards` and `vault_entries`
+- [x] Draft the API contract: `create_task_card`, `search_vault`, `upsert_vault_entry`, `update_status`
 
 #### Day 3 (6/22) — Both: Lock the interface
-- [ ] Walk through all three API functions together, line by line
-- [ ] Agree on exact status enum spelling — typos here break everything downstream
-- [ ] Run one mock end-to-end test using fake data on both sides
-
-> 📅 Calendar: "LoopBack: API Contract Lock-in Meeting" — 6/22, 10:00–11:30 AM ET
+- [x] Walk through all four API functions together, line by line
+- [x] Agree on exact status enum spelling
+- [x] Merged feature/jie-vault-foundation into dev1-taskcard, conflicts resolved
 
 #### Day 4–5 (6/23–6/25) — Jinqiu
-- [x] Wire up Vault-priority query logic (against stub API)
-- [ ] No match → Slack history search
-- [ ] Still no match → escalate to resolver, task card status switches
+- [x] Full 3-tier search: Vault → Slack history + GitHub MCP → human escalation
+- [x] Slack Real-Time Search API integrated
+- [x] GitHub MCP integrated (reads loopback-analytics repo)
+- [x] Pre-escalation direction check (direction_handler.py)
+- [x] Resolution detection (resolution_handler.py)
+- [x] All 7 task card states + direction_check state
+- [x] Enhancement Proposal engine (@Mira analyze)
 
 #### Day 4–5 (6/23–6/24) — Jie
-- [ ] Embedding pipeline working end-to-end
-- [ ] `search_vault` implemented with cosine similarity
-- [ ] Test semantic search accuracy on 5–10 sample question pairs (different wording, same intent)
+- [x] Embedding pipeline working end-to-end
+- [x] `search_vault` implemented with cosine similarity (pgvector)
+- [x] Full knowledge_vault package merged and integrated
 
-#### Day 6 (6/25) — Both: Real integration test
-- [ ] Run a full path against the real Supabase instance, not mocks
-- [ ] Confirm Jinqiu's side correctly reads Vault's real API responses
+#### Integration — Both
+- [x] Full cold-start cycle demonstrated end-to-end in Slack
+- [x] Vault merge complete, API signatures aligned
+- [ ] VAULT_STUB=false + real Supabase connected (Jie provides credentials)
+- [ ] Real integration test with live Supabase
 
-> 📅 Calendar: "LoopBack: Real Integration Test" — 6/25, 5:00–6:00 PM ET (last sync before travel)
-
-**Week 1 done means:** API contract locked, both sides can work independently, one full (if rough)
-path has run successfully at least once.
+**Week 1–2 done means:** Full flow working end-to-end in stub mode, Vault code complete,
+real Supabase connection pending credentials handoff.
 
 ---
 
 ### Week 2 — 6/26 to 7/6: Independent Build Window
 
-Jinqiu is traveling and not actively working this window. Jie builds independently against the
-locked contract — no blocking dependency on Jinqiu during this period.
+Jie completes Vault mechanism. Jinqiu continues v2 features.
 
-#### Jie — Knowledge Vault mechanism
-- [ ] Full three-signal logic inside `upsert_vault_entry`:
-  - [ ] signal_1 (clear confirmation) → `verified`
-  - [ ] signal_2 (two-tier: ambiguous reply vs. second silence) → `unconfirmed`, with different starting confidence
-  - [ ] signal_3 (denial) → `escalate`, old answer pushed to `version_history`, new answer overwrites display
-- [ ] Confidence accumulation logic: independent confirmations from different users raise confidence over time, not dependent on a single person responding in a window
-- [ ] 30-minute timer + one follow-up + second-silence fallback (cron job or delayed task queue)
-- [ ] `version_history` push-on-update logic implemented and tested
-- [ ] Write unit tests against the API contract so Jinqiu can verify against them on return
+#### Jie — Vault completion
+- [x] Full three-signal logic (signal_1/2/3)
+- [x] Confidence accumulation across independent users
+- [x] version_history push-on-update (signal_3)
+- [ ] 30-minute timer + follow-up + second-silence fallback
+- [ ] Supabase credentials shared with Jinqiu → VAULT_STUB=false
+- [ ] Smoke test against real Supabase (smoke_test.py)
+
+#### Jinqiu — v2 features (loopback-2 branch)
+- [x] GitHub MCP (mcp_github.py)
+- [x] Direction check handler (direction_handler.py)
+- [x] Enhancement Proposal engine (pm/proposal_engine.py)
+- [x] loopback-analytics repo created with realistic demo data
+- [ ] GITHUB_TOKEN configured → GitHub MCP live
+- [ ] Canvas Dashboard (replaces Block Kit App Home)
 
 > **Simplification fallback:** if signal_2's two-tier logic is taking too long, ship signal_1 and
 > signal_3 fully first, treat everything else as a single "unconfirmed, low confidence" bucket,
