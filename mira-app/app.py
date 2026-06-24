@@ -50,9 +50,6 @@ if __name__ == "__main__":
 
     register_resolution_handler(app, bot_user_id)
 
-    from handlers.direction_handler import register_direction_handler
-    register_direction_handler(app, bot_user_id)
-
     handler = SocketModeHandler(app, SLACK_APP_TOKEN)
     print(f"Mira is running (bot_user_id={bot_user_id}). Waiting for @ mentions...")
     handler.start()

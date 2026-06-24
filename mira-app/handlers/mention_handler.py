@@ -22,8 +22,7 @@ from services.mcp_github import gather_context
 from services.slack_search import search_slack_history
 from services.task_card import build_task_card
 from services.vault_client import VaultClient
-from handlers.resolution_handler import register_active_thread
-from handlers.direction_handler import register_direction_check
+from handlers.resolution_handler import register_active_thread, register_direction_thread
 
 _MENTION_PATTERN = re.compile(r"<@[A-Z0-9]+>")
 _vault = VaultClient()
@@ -180,7 +179,7 @@ def register_mention_handler(app):
             say(channel=channel, thread_ts=thread_ts,
                 text=f"Based on what I found, does this look like the right direction? Reply *yes* to loop in your team.")
 
-            register_direction_check(
+            register_direction_thread(
                 thread_ts=thread_ts,
                 card_ts=card_ts,
                 channel=channel,
