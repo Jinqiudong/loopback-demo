@@ -60,7 +60,7 @@ def _summarise_findings(question: str, findings: dict) -> str:
         for f in findings["code_files"]:
             parts.append(f"**{f['filename']}**:\n```\n{f['excerpt']}\n```")
     if "known_issues" in findings:
-        parts.append(f"**Known issues doc:**\n{findings['known_issues'][:600]}")
+        parts.append(f"**Known issues doc:**\n{findings['known_issues'][:1200]}")
     if "data_dictionary" in findings and not parts:
         parts.append(f"**Data dictionary:**\n{findings['data_dictionary'][:600]}")
 

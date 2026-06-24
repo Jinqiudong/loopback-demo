@@ -145,10 +145,12 @@ def gather_context(query: str) -> dict[str, Any]:
 
     data_dict = read_data_dictionary()
     if data_dict:
-        findings["data_dictionary"] = data_dict
+        # Extract the section most relevant to this specific query
+        findings["data_dictionary"] = _extract_relevant(data_dict, query, max_chars=1000)
 
     known_issues = read_known_issues()
     if known_issues:
-        findings["known_issues"] = known_issues
+        # Extract the section most relevant to this specific query
+        findings["known_issues"] = _extract_relevant(known_issues, query, max_chars=1000)
 
     return findings
