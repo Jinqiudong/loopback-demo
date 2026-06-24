@@ -252,20 +252,22 @@ code files, SQL queries, and schema definitions. Data Dictionary MCP provides fi
 definitions and business terms. Both run alongside the Real-Time Search API in Tier 2.
 Implemented in `mira-app/services/mcp_github.py` and `mcp_data_dict.py` (Week 2).
 
-### DM to resolver ("Want to save this?")
-After resolution is detected, Mira does NOT auto-save. Instead, she DMs the resolver:
-*"Looks like [User] confirmed your fix worked. Want to save this for the next person?"*
-This is more natural than a button and gives the resolver agency over Vault quality.
-`resolution_handler.py` sends the DM; a new `dm_action_handler.py` handles [Save it].
+### Auto-save via 3 signals (no resolver action required)
+The original three-signal mechanism is preserved and is the only path into the Vault.
+Resolvers do not need to click anything — Mira handles everything automatically based
+on what the requester does after receiving an answer. See § The three confirmation signals.
 
 ### Enhancement Proposal engine (Mira as PM)
-`mira-app/pm/proposal_engine.py` — analyzes Vault entries to find patterns:
-- Same root cause cited in 3+ questions
-- Same table/field appearing in multiple support questions
-- High escalation rate on a category → signals Vault cannot auto-answer it
+`mira-app/pm/proposal_engine.py` — Claude analyzes patterns across task cards semantically.
+No predefined templates or hardcoded rules. Mira reads the actual task card content —
+what was asked, what Mira found, how resolvers answered, what signals came back — and
+decides what patterns are worth surfacing and what they might mean. The proposal content
+is fully AI-generated. The Product Owner sees what Claude noticed, not what a template
+was filled in with.
 
-When a pattern is detected, Mira generates a structured proposal card in the Canvas
-Dashboard with source questions, root cause, suggested fix, and projected impact.
+Pre-escalation requester check-in is also added here: when Tier 2 search finds useful
+findings, Mira enriches the task card and checks in with the requester before looping in
+the resolver. This reduces unnecessary escalations and gives the resolver better context.
 
 ### Slack Canvas Dashboard
 Replaces Block Kit App Home. `mira-app/dashboard/canvas_view.py` uses the Canvas API

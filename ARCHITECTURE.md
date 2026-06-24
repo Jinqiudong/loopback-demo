@@ -45,21 +45,30 @@ Tier 2: Parallel search (three sources simultaneously)
     ├─ GitHub MCP         (code, SQL, schema files)
     └─ Data Dictionary MCP (field definitions, business terms)
             │
-            ├─ candidate(s) found → surface best result + clarify if needed
-            └─ nothing found → Tier 3
+            ├─ findings assembled → task card enriched
+            │   Mira checks in with requester:
+            │   "Based on what I found, does this look right?"
+            │   Requester confirms → Mira loops in resolver with full context
+            └─ nothing useful → escalate directly to resolver
                     │
                     ▼
 Tier 3: Escalate to resolver
-    Mira posts task card WITH investigation findings already included
+    Task card includes Mira's investigation findings (not empty)
     Resolver replies DIRECTLY in thread — Mira listens, never relays
-    Mira detects resolution, DMs resolver: "Want to save this?"
-    Resolution written to Vault, Mira follows up with requester
+    Requester gives a signal → Mira writes to Vault automatically (no resolver action needed)
             │
             ▼
-PM identity (async, background)
-    Vault patterns analyzed → Enhancement Proposals generated
+Three-signal auto-save (no manual steps):
+    Signal 1 (clear confirm)  → verified
+    Signal 2 (silence)        → "Suggested, not yet verified" → accumulates via future use
+    Signal 3 (denial)         → escalate, old answer → version_history
+            │
+            ▼
+PM identity (async, background — Claude-powered)
+    Mira analyzes patterns across task cards semantically
+    Notices recurring themes, root causes, what resolver answers reveal
+    Generates AI-written Enhancement Proposals (content determined by LLM, not templates)
     Product Owner reviews in Canvas Dashboard → approve / reject / defer
-    Approved fix implemented → Mira DMs original requesters to close the loop
 ```
 
 ---

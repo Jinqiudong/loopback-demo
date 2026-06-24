@@ -81,31 +81,36 @@ open-ended engineering project. Act accordingly:
 
 ## Product version — v2
 
-LoopBack v2 extends the original support-assistant design with two major additions:
+**Slogan (v2):** *Every problem solved becomes organizational memory. Every pattern becomes a product fix.*
+
+LoopBack v2 extends the original support-assistant design with:
 
 **GitHub MCP + Data Dictionary MCP** — Tier 2 search now runs three sources in parallel:
 Slack history (Real-Time Search API), GitHub (code/SQL/schema), and the Data Dictionary
-(field definitions). This means Mira can find the root cause of a data issue by reading
-the actual SQL file, not just searching for keywords.
+(field definitions). Mira reads the actual SQL files and field definitions — not keywords.
 
-**Mira as Product Manager** — after enough questions accumulate in the Vault, Mira analyzes
-patterns and generates Enhancement Proposals: structured backlog cards with source questions,
-root cause, suggested fix, and projected impact. Product Owners approve/reject/defer in the
-Canvas Dashboard. When a fix ships, Mira DMs the original requesters to close the loop.
+**Pre-escalation requester check-in** — when Tier 2 finds useful findings, Mira enriches
+the task card and checks in with the requester before looping in the resolver: *"Based on
+what I found, does this look like the right direction?"* Requester confirms → Mira brings
+in the resolver with full context. Reduces unnecessary escalations.
 
-**Slack Canvas Dashboard** — replaces Block Kit App Home. Canvas supports real tables, rich
-text, and structured sections. Dual-perspective: Requester view (my questions, my feedback's
-impact) and Resolver/PM view (open tasks, Vault health, pending proposals).
+**Auto-save via 3 signals (unchanged from v1)** — NO DM to resolver, no button clicks.
+Mira handles Vault writes automatically based on requester signals only. Resolvers do
+nothing extra. Signal 1 → verified. Signal 2 (silence) → unconfirmed. Signal 3 (denial)
+→ escalate + version_history preserved.
 
-**DM to resolver** — instead of auto-saving on button click, Mira DMs the resolver after
-a resolution is detected: *"Want to save this for the next person?"*. This is more natural
-and gives the resolver agency over what goes into the Vault.
+**Enhancement Proposals (Claude-powered, no templates)** — after enough task cards
+accumulate, Claude analyzes patterns semantically and generates AI-written proposals.
+The content is determined by the LLM based on what it actually sees in the task cards —
+not predefined rules or hardcoded categories. Product Owner sees genuine AI insight.
 
-**Demo scenario** — the concrete demo is the approval rate drop (40%) caused by a missing
-`product_type` field. Mira finds the root cause via GitHub MCP (reads `da_approval_metrics.sql`
-+ Data Dictionary), escalates to DE, the fix gets saved to Vault, and three months later a
-new BA gets the answer instantly. Act 3: the accumulated pattern generates an Enhancement
-Proposal to add `product_type` as NOT NULL in schema.
+**Slack Canvas Dashboard** — replaces Block Kit App Home. Real tables, rich text, structured
+sections. Dual-perspective: Requester view + Resolver/PM view (open tasks, Vault health,
+pending proposals with [Approve] [Reject] [Defer]).
+
+**Repo split** — `loopback-demo` contains only code. Product docs (DESIGN.md, implementation
+plan, project story, diagrams) live in a separate product repo. CLAUDE.md and ARCHITECTURE.md
+stay in the code repo as they're directly relevant to building and evaluating the code.
 
 ## Where to find things
 
