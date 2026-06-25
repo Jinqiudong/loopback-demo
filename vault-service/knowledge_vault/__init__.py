@@ -367,9 +367,24 @@ def get_channel_task_cards(channel_id: str, since: str) -> list[dict]:
         )
         vault_map = {ve["id"]: ve for ve in (ve_result.data or [])}
 
-    enriched = []
+    _STATUS_RANK = {"verified": 4, "unconfirmed": 3, "escalate": 2, "human_working": 1}
+
+    # Deduplicate by question_raw — keep highest-status card per unique question.
+    seen: dict[str, dict] = {}
     for card in cards:
+        q = card["question_raw"].strip().lower()
+        existing = seen.get(q)
+        if existing is None or (
+            _STATUS_RANK.get(card["status"], 0) > _STATUS_RANK.get(existing["status"], 0)
+        ):
+            seen[q] = card
+
+    enriched = []
+    for card in seen.values():
         ve = vault_map.get(card.get("vault_entry_id") or "", {})
+        emb = ve.get("embedding")
+        if isinstance(emb, str):
+            emb = json.loads(emb)
         enriched.append({
             "task_card_id": card["id"],
             "question": ve.get("question_canonical") or card["question_raw"],
@@ -377,7 +392,7 @@ def get_channel_task_cards(channel_id: str, since: str) -> list[dict]:
             "thread_ts": card["thread_ts"],
             "source_thread": ve.get("source_thread"),
             "confidence_score": ve.get("confidence_score", 0.0),
-            "embedding": ve.get("embedding"),
+            "embedding": emb,
             "owner_id": ve.get("owner_id"),
         })
 
