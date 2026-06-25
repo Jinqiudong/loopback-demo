@@ -101,6 +101,16 @@ def register_mention_handler(app):
             run_proposal_engine(say, channel=event["channel"])
             return
 
+        # Special trigger: @Mira insights → post Channel Insights period selector
+        if re.search(r"\binsights?\b", question_text, re.IGNORECASE):
+            from dashboard.channel_canvas import build_period_selector
+            say(
+                channel=event["channel"],
+                blocks=build_period_selector(event["channel"]),
+                text="Which time period would you like to see?",
+            )
+            return
+
         result = classify_intent(question_text)
         logger.info(f"Intent: {result.raw_label} — {question_text!r}")
 

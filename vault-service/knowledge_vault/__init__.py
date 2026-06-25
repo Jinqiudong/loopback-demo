@@ -10,9 +10,12 @@ Install in the mira-app environment with:
   pip install -e ../vault-service
 """
 
+import json
+import math
 import os
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 import openai
 from supabase import create_client
@@ -28,7 +31,7 @@ _openai = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 # ── confidence constants (see DESIGN.md § Confidence accumulation) ────────────
 
 _HIGH_MATCH = 0.70   # return answer immediately above this similarity
-_LOW_MATCH  = 0.45   # below this → treat as no match
+_LOW_MATCH  = 0.35   # below this → treat as no match
 
 _INITIAL_SCORES = {
     "signal_1":           0.90,  # clear confirmation from requester
@@ -54,6 +57,15 @@ def _embed(text: str) -> list[float]:
     """1536-dim embedding via OpenAI text-embedding-3-small."""
     response = _openai.embeddings.create(input=text, model="text-embedding-3-small")
     return response.data[0].embedding
+
+
+def _cosine_sim(a: list, b: list) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
 
 
 def _initial_score(signal: str, ambiguous: bool = False) -> float:
@@ -83,36 +95,53 @@ def search_vault(query_text: str) -> dict:
     """
     embedding = _embed(query_text)
 
-    result = _supabase.rpc(
-        "match_vault_entries",
-        {"query_embedding": embedding, "match_count": 1},
-    ).execute()
+    # Fetch all entries with embeddings and compute similarity in Python.
+    # pgvector RPC has serialization issues with PostgREST; Python-side cosine
+    # is fast enough at hackathon scale (< 10k entries).
+    result = (
+        _supabase.table("vault_entries")
+        .select("id, question_canonical, current_answer, owner_id, status, "
+                "confidence_score, usage_count, last_confirmed_at, source_thread, embedding")
+        .not_.is_("embedding", "null")
+        .execute()
+    )
 
     if not result.data:
         return _no_match()
 
-    top = result.data[0]
-    similarity = float(top.get("similarity", 0.0))
+    best = None
+    best_sim = -1.0
+    for entry in result.data:
+        emb = entry.get("embedding")
+        if not emb:
+            continue
+        if isinstance(emb, str):
+            emb = json.loads(emb)
+        sim = _cosine_sim(embedding, emb)
+        if sim > best_sim:
+            best_sim = sim
+            best = entry
 
-    if similarity < _LOW_MATCH:
+    if best is None or best_sim < _LOW_MATCH:
         return _no_match()
 
-    # Passive confidence accumulation: this user found the answer useful (no denial yet).
-    new_score = min(float(top["confidence_score"]) + _USAGE_INCREMENT, 1.0)
-    patch: dict = {"usage_count": top["usage_count"] + 1, "confidence_score": new_score}
-    if new_score >= _AUTO_VERIFY_THRESHOLD and top["status"] == "unconfirmed":
+    # Passive confidence accumulation
+    new_score = min(float(best["confidence_score"]) + _USAGE_INCREMENT, 1.0)
+    patch: dict = {"usage_count": best["usage_count"] + 1, "confidence_score": new_score}
+    if new_score >= _AUTO_VERIFY_THRESHOLD and best["status"] == "unconfirmed":
         patch["status"] = "verified"
         patch["last_confirmed_at"] = _now()
 
-    _supabase.table("vault_entries").update(patch).eq("id", top["id"]).execute()
+    _supabase.table("vault_entries").update(patch).eq("id", best["id"]).execute()
 
     return {
         "match_found": True,
-        "entry_id": top["id"],
-        "answer": top["current_answer"],
-        "owner_id": top["owner_id"],
-        "confidence": similarity,
-        "last_confirmed_at": top.get("last_confirmed_at"),
+        "entry_id": best["id"],
+        "answer": best["current_answer"],
+        "owner_id": best["owner_id"],
+        "confidence": best_sim,
+        "last_confirmed_at": best.get("last_confirmed_at"),
+        "source_thread": best.get("source_thread"),
     }
 
 
@@ -124,6 +153,7 @@ def _no_match() -> dict:
         "owner_id": None,
         "confidence": 0.0,
         "last_confirmed_at": None,
+        "source_thread": None,
     }
 
 
@@ -134,6 +164,7 @@ def upsert_vault_entry(
     owner_id: str,
     signal: str,              # 'signal_1' | 'signal_2' | 'signal_3'
     ambiguous: bool = False,  # signal_2 only: True = ambiguous reply, False = silence
+    source_thread: Optional[str] = None,
 ) -> dict:
     """
     Write or update a Knowledge Vault entry based on a confirmation signal.
@@ -157,7 +188,7 @@ def upsert_vault_entry(
     existing_entry_id = (card.data or {}).get("vault_entry_id")
 
     if signal == "signal_3" and existing_entry_id:
-        return _apply_signal_3(existing_entry_id, answer, owner_id, task_card_id)
+        return _apply_signal_3(existing_entry_id, answer, owner_id, task_card_id, source_thread)
 
     score = _initial_score(signal, ambiguous=ambiguous)
     status = "verified" if signal == "signal_1" else "unconfirmed"
@@ -190,6 +221,7 @@ def upsert_vault_entry(
         "status": status,
         "confidence_score": score,
         "usage_count": 0,
+        "source_thread": source_thread,
         "version_history": [],
         "last_confirmed_at": now if status == "verified" else None,
         "created_at": now,
@@ -204,7 +236,8 @@ def upsert_vault_entry(
     return {"entry_id": entry_id, "status": status, "confidence_score": score}
 
 
-def _apply_signal_3(entry_id: str, new_answer: str, owner_id: str, task_card_id: str) -> dict:
+def _apply_signal_3(entry_id: str, new_answer: str, owner_id: str, task_card_id: str,
+                    new_source_thread: Optional[str] = None) -> dict:
     """Push current answer to version_history; accept new answer as unconfirmed."""
     existing = (
         _supabase.table("vault_entries")
@@ -218,6 +251,7 @@ def _apply_signal_3(entry_id: str, new_answer: str, owner_id: str, task_card_id:
 
     archive = {
         "answer": existing["current_answer"],
+        "source_thread": existing.get("source_thread"),  # preserve old thread link
         "valid_from": existing.get("created_at"),
         "valid_until": now,
         "changed_by": owner_id,
@@ -227,14 +261,18 @@ def _apply_signal_3(entry_id: str, new_answer: str, owner_id: str, task_card_id:
     history.append(archive)
     score = _INITIAL_SCORES["signal_3"]
 
-    _supabase.table("vault_entries").update({
+    patch = {
         "current_answer": new_answer,
         "owner_id": owner_id,
         "status": "unconfirmed",
         "confidence_score": score,
         "version_history": history,
         "updated_at": now,
-    }).eq("id", entry_id).execute()
+    }
+    if new_source_thread:
+        patch["source_thread"] = new_source_thread
+
+    _supabase.table("vault_entries").update(patch).eq("id", entry_id).execute()
 
     _supabase.table("task_cards").update({
         "status": "escalate",
@@ -300,4 +338,53 @@ def list_vault_entries(limit: int = 20) -> list[dict]:
     return result.data or []
 
 
-__all__ = ["create_task_card", "search_vault", "upsert_vault_entry", "update_status", "list_vault_entries"]
+def get_channel_task_cards(channel_id: str, since: str) -> list[dict]:
+    """
+    Return enriched task cards for a channel since a given ISO timestamp.
+    Joins vault_entries to get embedding + confidence + source_thread.
+    Used by Channel Insights Canvas.
+    """
+    tc_result = (
+        _supabase.table("task_cards")
+        .select("id, question_raw, status, thread_ts, vault_entry_id")
+        .eq("channel_id", channel_id)
+        .gte("created_at", since)
+        .in_("status", ["verified", "unconfirmed", "human_working", "escalate"])
+        .execute()
+    )
+    cards = tc_result.data or []
+    if not cards:
+        return []
+
+    vault_ids = [c["vault_entry_id"] for c in cards if c.get("vault_entry_id")]
+    vault_map: dict = {}
+    if vault_ids:
+        ve_result = (
+            _supabase.table("vault_entries")
+            .select("id, question_canonical, embedding, confidence_score, source_thread, owner_id")
+            .in_("id", vault_ids)
+            .execute()
+        )
+        vault_map = {ve["id"]: ve for ve in (ve_result.data or [])}
+
+    enriched = []
+    for card in cards:
+        ve = vault_map.get(card.get("vault_entry_id") or "", {})
+        enriched.append({
+            "task_card_id": card["id"],
+            "question": ve.get("question_canonical") or card["question_raw"],
+            "status": card["status"],
+            "thread_ts": card["thread_ts"],
+            "source_thread": ve.get("source_thread"),
+            "confidence_score": ve.get("confidence_score", 0.0),
+            "embedding": ve.get("embedding"),
+            "owner_id": ve.get("owner_id"),
+        })
+
+    return enriched
+
+
+__all__ = [
+    "create_task_card", "search_vault", "upsert_vault_entry",
+    "update_status", "list_vault_entries", "get_channel_task_cards",
+]

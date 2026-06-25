@@ -54,7 +54,7 @@ CREATE INDEX IF NOT EXISTS vault_entries_embedding_idx
 -- Step 5: RPC function called by search_vault via supabase.rpc("match_vault_entries", ...)
 -- Returns top-N entries ranked by cosine similarity to the query embedding.
 CREATE OR REPLACE FUNCTION match_vault_entries(
-    query_embedding vector(1536),
+    query_embedding float[],
     match_count     int DEFAULT 1
 )
 RETURNS TABLE (
@@ -66,6 +66,7 @@ RETURNS TABLE (
     confidence_score    float,
     usage_count         int,
     last_confirmed_at   timestamptz,
+    source_thread       text,
     similarity          float
 )
 LANGUAGE sql STABLE
@@ -79,10 +80,11 @@ AS $$
         confidence_score,
         usage_count,
         last_confirmed_at,
-        -- pgvector <=> is cosine distance (0 = identical); invert to get similarity
-        1 - (embedding <=> query_embedding) AS similarity
+        source_thread,
+        -- cast float[] → vector, then invert cosine distance to get similarity
+        1 - (embedding <=> query_embedding::vector) AS similarity
     FROM vault_entries
     WHERE embedding IS NOT NULL
-    ORDER BY embedding <=> query_embedding
+    ORDER BY embedding <=> query_embedding::vector
     LIMIT match_count;
 $$;

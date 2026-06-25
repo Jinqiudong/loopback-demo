@@ -44,6 +44,7 @@ def handle_proposal_reject(ack, body, say):
         text="❌ Enhancement Proposal rejected and noted.")
 
 
+
 if __name__ == "__main__":
     bot_info = app.client.auth_test()
     bot_user_id = bot_info["user_id"]

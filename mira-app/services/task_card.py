@@ -1,12 +1,11 @@
 """
 Builds the Block Kit representation of a task card.
 
-Two distinct visual experiences:
-  Cold start  → "🆕 First time this has been asked" — human resolver steps in
-  Vault hit   → "⚡ Answered from Knowledge Vault"  — instant answer + confirm button
-
-The card mutates in place through every state. No new messages, just one card
-that shows the full resolution story as it unfolds.
+Design principles:
+  - Question is NOT repeated (it's already visible as the user's original message)
+  - Status is shown prominently via header block at the top
+  - Source thread link shown when answer comes from vault or Slack history
+  - Status + timestamp shown clearly at the bottom
 """
 
 import json
@@ -14,6 +13,17 @@ import time
 from typing import Any, Optional
 
 _ANSWER_PREVIEW_LIMIT = 280
+
+_STATUS_HEADERS = {
+    "draft":          ("🔍", "Checking Knowledge Vault..."),
+    "ai_searching":   ("🔍", "Searching Knowledge Vault + Slack history + codebase..."),
+    "direction_check":("🔎", "Direction Check — does this look right?"),
+    "human_working":  ("🆕", "First time this has been asked"),
+    "pending_confirm":("💬", "Answer found — does this help?"),
+    "verified":       ("✅", "Verified Answer"),
+    "unconfirmed":    ("💡", "Suggested Answer — not yet verified"),
+    "escalate":       ("↩️", "Answer wasn't helpful — a teammate will try again"),
+}
 
 
 def build_task_card(
@@ -25,42 +35,34 @@ def build_task_card(
     vault_hit: bool = False,
     context_summary: Optional[str] = None,
 ) -> list[dict]:
-    task_id = _task_id(thread_ts)
+    emoji, header_text = _STATUS_HEADERS.get(status, ("•", status))
     time_ago = _relative_time(thread_ts)
 
     blocks: list[dict] = [
+        # Status as header — larger, clearly the first thing you see
         {
-            "type": "context",
-            "elements": [{"type": "mrkdwn", "text": f"*{task_id}*"}],
-        },
-        {
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*{question_text}*"},
+            "type": "header",
+            "text": {"type": "plain_text", "text": f"{emoji} {header_text}", "emoji": True},
         },
         {"type": "divider"},
     ]
 
-    if status == "draft":
-        blocks.append(_headline("🔍", "Checking Knowledge Vault..."))
-
-    elif status == "ai_searching":
-        blocks.append(_headline("🔍", "Searching Knowledge Vault + Slack history + codebase..."))
+    if status in ("draft", "ai_searching"):
+        pass  # header is enough for transient states
 
     elif status == "direction_check":
-        blocks.append(_headline("🔎", "Found something — does this look right?"))
         if context_summary:
             blocks.append({
                 "type": "section",
                 "text": {"type": "mrkdwn", "text": f"*What Mira found:*\n{context_summary}"},
             })
         blocks.append({
-            "type": "context",
-            "elements": [{"type": "mrkdwn",
-                          "text": "Reply *yes* to confirm this direction and loop in a resolver · or clarify what's different"}],
+            "type": "section",
+            "text": {"type": "mrkdwn",
+                     "text": "Reply *yes* to confirm this direction and loop in a resolver · or clarify what's different"},
         })
 
     elif status == "human_working":
-        blocks.append(_headline("🆕", "First time this question has been asked"))
         if context_summary:
             blocks.append({
                 "type": "section",
@@ -74,31 +76,17 @@ def build_task_card(
 
     elif status == "pending_confirm":
         if vault_hit and results:
-            blocks.extend(_vault_hit_blocks(results[0], thread_ts, asker_id))
+            blocks.extend(_vault_hit_blocks(results[0], thread_ts, asker_id, question_text))
         elif results:
-            blocks.extend(_resolver_answer_blocks(results[0], thread_ts, asker_id))
-        else:
-            blocks.append(_headline("⏳", "Waiting for your confirmation"))
+            blocks.extend(_resolver_answer_blocks(results[0], thread_ts, asker_id, question_text))
 
-    elif status == "verified":
-        if results:
-            blocks.extend(_verified_blocks(results[0]))
-        else:
-            blocks.append(_headline("✅", "Verified — saved to Knowledge Vault"))
-            blocks.append({
-                "type": "context",
-                "elements": [{"type": "mrkdwn",
-                              "text": "Next time anyone asks, Mira answers instantly"}],
-            })
+    elif status == "verified" and results:
+        blocks.extend(_verified_blocks(results[0]))
 
-    elif status == "unconfirmed":
-        if results:
-            blocks.extend(_unconfirmed_blocks(results[0]))
-        else:
-            blocks.append(_headline("💡", "Suggested answer — not yet verified"))
+    elif status == "unconfirmed" and results:
+        blocks.extend(_unconfirmed_blocks(results[0]))
 
     elif status == "escalate":
-        blocks.append(_headline("↩️", "Answer wasn't helpful — a teammate will try again"))
         blocks.append({
             "type": "context",
             "elements": [{"type": "mrkdwn", "text": "Previous answer preserved in history"}],
@@ -108,7 +96,7 @@ def build_task_card(
     blocks.append({
         "type": "context",
         "elements": [{"type": "mrkdwn",
-                      "text": f"Owner: {_owner(status, asker_id)}  ·  {time_ago}"}],
+                      "text": f"Status: *{emoji} {header_text}*  ·  {_asked_by(asker_id)}  ·  {time_ago}"}],
     })
 
     return blocks
@@ -118,148 +106,155 @@ def build_task_card(
 
 def _vault_hit_blocks(result: dict[str, Any],
                       thread_ts: Optional[str],
-                      asker_id: Optional[str]) -> list[dict]:
+                      asker_id: Optional[str],
+                      question_text: str = "") -> list[dict]:
     answer = _truncate(result.get("answer", ""))
     confidence = result.get("confidence", 0)
     usage = result.get("usage_count", 0)
+    source_thread = result.get("source_thread")
 
-    meta = f"{int(confidence * 100)}% confidence"
-    if usage > 0:
-        meta += f"  ·  verified by {usage} teammate{'s' if usage > 1 else ''}"
-
-    value = _button_value(result, answer, thread_ts, asker_id, vault_hit=True)
-
-    return [
-        _headline("⚡", "Answered from Knowledge Vault"),
+    blocks = [
         {
             "type": "section",
             "text": {"type": "mrkdwn", "text": answer},
         },
-        {
-            "type": "context",
-            "elements": [{"type": "mrkdwn", "text": meta}],
-        },
-        {
-            "type": "actions",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "This helped ✓"},
-                    "style": "primary",
-                    "action_id": "vault_confirm",
-                    "value": value,
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "Outdated?"},
-                    "action_id": "vault_not_helpful",
-                    "value": value,
-                },
-            ],
-        },
     ]
+
+    meta_parts = [f"{int(confidence * 100)}% confidence"]
+    if usage > 0:
+        meta_parts.append(f"verified by {usage} teammate{'s' if usage > 1 else ''}")
+    if source_thread:
+        meta_parts.append(f"<{source_thread}|View original thread>")
+
+    blocks.append({
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": "  ·  ".join(meta_parts)}],
+    })
+
+    value = _button_value(result, answer, thread_ts, asker_id, vault_hit=True, question=question_text)
+    blocks.append({
+        "type": "actions",
+        "elements": [
+            {
+                "type": "button",
+                "text": {"type": "plain_text", "text": "This helped ✓"},
+                "style": "primary",
+                "action_id": "vault_confirm",
+                "value": value,
+            },
+            {
+                "type": "button",
+                "text": {"type": "plain_text", "text": "Outdated?"},
+                "action_id": "vault_not_helpful",
+                "value": value,
+            },
+        ],
+    })
+    return blocks
 
 
 def _resolver_answer_blocks(result: dict[str, Any],
                              thread_ts: Optional[str],
-                             asker_id: Optional[str]) -> list[dict]:
+                             asker_id: Optional[str],
+                             question_text: str = "") -> list[dict]:
     answer = _truncate(result.get("answer", ""))
-    value = _button_value(result, answer, thread_ts, asker_id, vault_hit=False)
+    source_thread = result.get("permalink") or result.get("source_thread")
+    value = _button_value(result, answer, thread_ts, asker_id, vault_hit=False, question=question_text)
 
-    return [
+    blocks = [
         {
             "type": "section",
             "text": {"type": "mrkdwn", "text": answer},
         },
-        {
-            "type": "context",
-            "elements": [{"type": "mrkdwn", "text": "Did this resolve your issue?"}],
-        },
-        {
-            "type": "actions",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "Yes, resolved ✓"},
-                    "style": "primary",
-                    "action_id": "vault_confirm",
-                    "value": value,
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "Not quite"},
-                    "action_id": "vault_not_helpful",
-                    "value": value,
-                },
-            ],
-        },
     ]
+
+    if source_thread:
+        blocks.append({
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": f"📎 <{source_thread}|View source thread>"}],
+        })
+
+    blocks.append({
+        "type": "actions",
+        "elements": [
+            {
+                "type": "button",
+                "text": {"type": "plain_text", "text": "Yes, resolved ✓"},
+                "style": "primary",
+                "action_id": "vault_confirm",
+                "value": value,
+            },
+            {
+                "type": "button",
+                "text": {"type": "plain_text", "text": "Not quite"},
+                "action_id": "vault_not_helpful",
+                "value": value,
+            },
+        ],
+    })
+    return blocks
 
 
 def _verified_blocks(result: dict[str, Any]) -> list[dict]:
     answer = _truncate(result.get("answer", ""))
     owner = result.get("owner_id", "")
     usage = result.get("usage_count", 1)
+    source_thread = result.get("source_thread")
 
-    meta = f"answered by <@{owner}>" if owner else "confirmed"
-    if usage > 1:
-        meta += f"  ·  helped {usage} teammates"
-    meta += "  ·  next time this is asked, Mira answers instantly"
-
-    return [
-        _headline("✅", "Verified — saved to Knowledge Vault"),
+    blocks = [
         {
             "type": "section",
             "text": {"type": "mrkdwn", "text": answer},
         },
-        {
-            "type": "context",
-            "elements": [{"type": "mrkdwn", "text": meta}],
-        },
     ]
+
+    meta_parts = []
+    if owner:
+        meta_parts.append(f"answered by <@{owner}>")
+    if usage > 1:
+        meta_parts.append(f"helped {usage} teammates")
+    if source_thread:
+        meta_parts.append(f"<{source_thread}|View original thread>")
+    meta_parts.append("next time this is asked, Mira answers instantly")
+
+    blocks.append({
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": "  ·  ".join(meta_parts)}],
+    })
+    return blocks
 
 
 def _unconfirmed_blocks(result: dict[str, Any]) -> list[dict]:
     answer = _truncate(result.get("answer", ""))
-    return [
-        _headline("💡", "Suggested answer — not yet verified"),
+    source_thread = result.get("source_thread")
+
+    blocks = [
         {
             "type": "section",
             "text": {"type": "mrkdwn", "text": answer},
         },
-        {
-            "type": "context",
-            "elements": [{"type": "mrkdwn",
-                          "text": "Be the first to confirm this · confidence will rise with each verification"}],
-        },
     ]
+
+    meta_parts = ["Be the first to confirm this"]
+    if source_thread:
+        meta_parts.append(f"<{source_thread}|View original thread>")
+
+    blocks.append({
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": "  ·  ".join(meta_parts)}],
+    })
+    return blocks
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def _headline(emoji: str, text: str) -> dict:
-    return {
-        "type": "section",
-        "text": {"type": "mrkdwn", "text": f"{emoji}  *{text}*"},
-    }
-
-
-def _owner(status: str, asker_id: Optional[str]) -> str:
-    if status == "pending_confirm":
-        return f"<@{asker_id}>" if asker_id else "Requester"
-    return {
-        "draft": "—",
-        "ai_searching": "Mira AI",
-        "human_working": "Resolver",
-        "verified": "—",
-        "unconfirmed": "—",
-        "escalate": "Resolver",
-    }.get(status, "—")
+def _asked_by(asker_id: Optional[str]) -> str:
+    return f"Asked by <@{asker_id}>" if asker_id else "Asked by teammate"
 
 
 def _button_value(result: dict[str, Any], answer: str,
                   thread_ts: Optional[str], asker_id: Optional[str],
-                  vault_hit: bool = False) -> str:
+                  vault_hit: bool = False, question: str = "") -> str:
     return json.dumps({
         "task_card_id": result.get("task_card_id", ""),
         "entry_id": result.get("entry_id", ""),
@@ -268,13 +263,8 @@ def _button_value(result: dict[str, Any], answer: str,
         "thread_ts": thread_ts or "",
         "asker_id": asker_id or "",
         "vault_hit": vault_hit,
+        "question": question,
     })
-
-
-def _task_id(thread_ts: Optional[str]) -> str:
-    if not thread_ts:
-        return "#----"
-    return f"#{thread_ts.split('.')[0][-4:]}"
 
 
 def _relative_time(thread_ts: Optional[str]) -> str:

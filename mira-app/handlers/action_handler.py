@@ -8,10 +8,15 @@ vault_not_helpful — "Outdated?" / "Not quite"
 """
 
 import json
+from typing import Optional
 
 from services.task_card import build_task_card
 from services.vault_client import VaultClient
 from handlers.resolution_handler import register_active_thread
+from dashboard.channel_canvas import (
+    update_canvas, build_period_selector,
+    period_since, period_label,
+)
 
 _vault = VaultClient()
 
@@ -28,9 +33,10 @@ def register_action_handlers(app):
         thread_ts = value.get("thread_ts") or body["message"].get("thread_ts")
         asker_id = value.get("asker_id")
         vault_hit = value.get("vault_hit", False)
+        question_text = value.get("question", "")
         channel = body["channel"]["id"]
         message_ts = body["message"]["ts"]
-        question_text = _extract_question(body)
+        source_thread = _thread_permalink(channel, thread_ts)
 
         try:
             _vault.upsert_entry(
@@ -39,6 +45,7 @@ def register_action_handlers(app):
                 answer=answer,
                 owner_id=owner_id,
                 signal="signal_1",
+                source_thread=source_thread,
             )
         except Exception:
             logger.exception("Vault upsert_entry failed on confirm")
@@ -51,7 +58,7 @@ def register_action_handlers(app):
                 status="verified",
                 results=[{"task_card_id": task_card_id, "entry_id": entry_id,
                           "answer": answer, "confidence": 0.95,
-                          "verified": True, "owner_id": owner_id}],
+                          "owner_id": owner_id, "source_thread": source_thread}],
                 thread_ts=thread_ts,
                 asker_id=asker_id,
                 vault_hit=vault_hit,
@@ -97,6 +104,40 @@ def register_action_handlers(app):
             )
 
 
+    def _handle_insights(period: str, ack, body, client, logger):
+        ack()
+        channel_id = body["actions"][0].get("value", body["channel"]["id"])
+        # Use name from body if available, fall back to channel_id (avoids channels:read scope)
+        channel_name = body.get("channel", {}).get("name") or channel_id
+
+        cards = _vault.get_channel_insights(channel_id, since=period_since(period))
+        label = period_label(period)
+
+        ok = update_canvas(client, channel_id, cards, channel_name, label)
+
+        if ok:
+            client.chat_update(
+                channel=body["channel"]["id"],
+                ts=body["message"]["ts"],
+                blocks=build_period_selector(channel_id),
+                text=f"Channel Insights canvas updated — {label}",
+            )
+        else:
+            logger.warning("Canvas update failed for channel %s", channel_id)
+
+    @app.action("insights_this_month")
+    def handle_insights_month(ack, body, client, logger):
+        _handle_insights("month", ack, body, client, logger)
+
+    @app.action("insights_this_quarter")
+    def handle_insights_quarter(ack, body, client, logger):
+        _handle_insights("quarter", ack, body, client, logger)
+
+    @app.action("insights_this_year")
+    def handle_insights_year(ack, body, client, logger):
+        _handle_insights("year", ack, body, client, logger)
+
+
 def _parse_value(body: dict) -> dict:
     try:
         return json.loads(body["actions"][0]["value"])
@@ -104,9 +145,8 @@ def _parse_value(body: dict) -> dict:
         return {}
 
 
-def _extract_question(body: dict) -> str:
-    try:
-        raw = body["message"]["blocks"][1]["text"]["text"]
-        return raw.strip("*").strip()
-    except (KeyError, IndexError):
+def _thread_permalink(channel: str, thread_ts: Optional[str]) -> str:
+    if not thread_ts:
         return ""
+    ts_compact = thread_ts.replace(".", "")
+    return f"https://slack.com/archives/{channel}/p{ts_compact}"

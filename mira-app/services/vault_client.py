@@ -40,11 +40,12 @@ class VaultClient:
         owner_id: str,
         signal: str,
         ambiguous: bool = False,
+        source_thread: Optional[str] = None,
     ) -> dict[str, Any]:
         if _STUB:
             return {"entry_id": f"stub-entry-{uuid.uuid4().hex[:8]}", "status": "verified", "confidence_score": 0.90}
         from knowledge_vault import upsert_vault_entry
-        return upsert_vault_entry(task_card_id, question_canonical, answer, owner_id, signal, ambiguous)
+        return upsert_vault_entry(task_card_id, question_canonical, answer, owner_id, signal, ambiguous, source_thread)
 
     def update_status(self, task_card_id: str, new_status: str) -> dict[str, Any]:
         if _STUB:
@@ -57,6 +58,12 @@ class VaultClient:
             return _stub_entries()
         from knowledge_vault import list_vault_entries
         return list_vault_entries(limit=limit)
+
+    def get_channel_insights(self, channel_id: str, since: str) -> list[dict[str, Any]]:
+        if _STUB:
+            return _stub_channel_cards(channel_id)
+        from knowledge_vault import get_channel_task_cards
+        return get_channel_task_cards(channel_id, since)
 
 
 def _stub_entries() -> list[dict[str, Any]]:
@@ -91,6 +98,19 @@ def _stub_entries() -> list[dict[str, Any]]:
             "owner_id": "U_JIE",
             "last_confirmed_at": "2026-06-19T14:00:00Z",
         },
+    ]
+
+
+def _stub_channel_cards(channel_id: str) -> list[dict[str, Any]]:
+    return [
+        {"task_card_id": "tc-001", "question": "Why did approval rate spike last week?",
+         "status": "verified", "source_thread": None, "confidence_score": 0.90, "embedding": None},
+        {"task_card_id": "tc-002", "question": "da_approval_metrics underreporting since March",
+         "status": "verified", "source_thread": None, "confidence_score": 0.85, "embedding": None},
+        {"task_card_id": "tc-003", "question": "How do I backfill NULL product_type values?",
+         "status": "unconfirmed", "source_thread": None, "confidence_score": 0.55, "embedding": None},
+        {"task_card_id": "tc-004", "question": "What counts as a completed approval?",
+         "status": "human_working", "source_thread": None, "confidence_score": 0.0, "embedding": None},
     ]
 
 
