@@ -91,9 +91,9 @@ def update_canvas(client, channel_id: str, cards: list[dict[str, Any]],
         return False
 
 
-def build_period_selector(channel_id: str) -> list[dict]:
+def build_period_selector(channel_id: str, updated_label: Optional[str] = None) -> list[dict]:
     """Block Kit selector posted in the channel when user types @Mira insights."""
-    return [
+    blocks: list[dict] = [
         {
             "type": "section",
             "text": {"type": "mrkdwn", "text": "Which time period would you like to see?\nResults will appear in the *Channel Insights* canvas in this channel."},
@@ -123,6 +123,12 @@ def build_period_selector(channel_id: str) -> list[dict]:
             ],
         },
     ]
+    if updated_label:
+        blocks.append({
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": f"✅ Canvas updated — {updated_label}"}],
+        })
+    return blocks
 
 
 def period_since(period: str) -> str:

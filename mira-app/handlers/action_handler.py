@@ -119,7 +119,7 @@ def register_action_handlers(app):
             client.chat_update(
                 channel=body["channel"]["id"],
                 ts=body["message"]["ts"],
-                blocks=build_period_selector(channel_id),
+                blocks=build_period_selector(channel_id, updated_label=label),
                 text=f"Channel Insights canvas updated — {label}",
             )
         else:
