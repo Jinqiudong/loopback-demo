@@ -138,6 +138,7 @@ def register_action_handlers(app):
         _handle_insights("year", ack, body, client, logger)
 
 
+
 def _parse_value(body: dict) -> dict:
     try:
         return json.loads(body["actions"][0]["value"])

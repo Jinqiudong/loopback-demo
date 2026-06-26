@@ -158,6 +158,8 @@ def period_label(period: str) -> str:
 # ── canvas markdown builder ───────────────────────────────────────────────────
 
 def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
+    from pm.proposal_engine import generate_opportunities
+
     now_str = datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
 
     verified = [c for c in cards if c["status"] == "verified"]
@@ -186,6 +188,9 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
     lines += _section("💡 Answered Pending", pending)
     lines += _section("❓ Open Questions", open_q)
 
+    opportunities = generate_opportunities(cards, label)
+    lines += _opportunity_section(opportunities, label)
+
     return "\n".join(lines)
 
 
@@ -211,6 +216,26 @@ def _section(title: str, cards: list[dict]) -> list[str]:
                 lines.append(f"- {card['question']}")
         lines.append("")
 
+    lines += ["---", ""]
+    return lines
+
+
+def _opportunity_section(opportunities: list[dict], label: str) -> list[str]:
+    if not opportunities:
+        return []
+    lines = [
+        f"## 🌱 Enhancement Opportunity",
+        f"*AI-generated · {label}*",
+        "",
+    ]
+    for opp in opportunities:
+        title = opp.get("title", "Untitled pattern")
+        count = opp.get("related_count", 0)
+        bullets = opp.get("bullets", [])
+        lines.append(f"**{title}**  ·  {count} related question{'s' if count != 1 else ''}")
+        for b in bullets:
+            lines.append(f"- {b}")
+        lines.append("")
     lines += ["---", ""]
     return lines
 

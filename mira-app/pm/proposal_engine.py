@@ -11,6 +11,7 @@ Posts proposal to: the channel where it was triggered
 """
 
 import anthropic
+import json
 import logging
 from typing import Any
 
@@ -86,6 +87,127 @@ def generate_proposal(task_cards: list[dict[str, Any]]) -> str:
     except Exception:
         logger.exception("Claude proposal generation failed")
         return "Unable to generate proposal at this time."
+
+
+_OPPORTUNITIES_PROMPT = """You are Mira, an AI analyst. Read the questions from this Slack channel
+and identify 1-3 patterns that suggest a product, documentation, or process improvement.
+
+Return ONLY a JSON array. Each item must have:
+- "title": a 5-8 word phrase naming the pattern (e.g. "Leave policy not clearly documented")
+- "related_count": number of questions that relate to this pattern
+- "bullets": array of 2-3 strings — first bullet(s) describe what you observed, last bullet starts with "Suggested:"
+
+If there are no meaningful patterns, return an empty array [].
+Do not include any text outside the JSON array."""
+
+
+def generate_opportunities(cards: list[dict], period_label: str) -> list[dict]:
+    """
+    Analyse channel task cards and return structured Enhancement Opportunities.
+    Returns a list of dicts: {title, related_count, bullets}
+    """
+    if not cards:
+        return []
+
+    cards_text = "\n\n".join([
+        f"Q: {card.get('question', 'Unknown')} (status: {card.get('status', '?')})"
+        for card in cards
+    ])
+
+    try:
+        response = _client.messages.create(
+            model=_MODEL,
+            max_tokens=600,
+            system=_OPPORTUNITIES_PROMPT,
+            messages=[{
+                "role": "user",
+                "content": f"Period: {period_label}\n\nQuestions:\n\n{cards_text}",
+            }],
+        )
+        text = response.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+        if not text:
+            return []
+        return json.loads(text)
+    except Exception:
+        logger.exception("Claude opportunity generation failed")
+        return []
+
+
+def generate_proposal_from_cards(cards: list[dict], channel_name: str, period_label: str) -> list[dict]:
+    """
+    Generate an Enhancement Proposal from channel task cards (insights data).
+    Scoped to a specific channel and time period — more focused than global vault analysis.
+    """
+    if not cards:
+        return [{
+            "type": "section",
+            "text": {"type": "mrkdwn",
+                     "text": f"No resolved questions in #{channel_name} for {period_label} yet."},
+        }]
+
+    cards_text = "\n\n".join([
+        f"Q: {card.get('question', 'Unknown')}\n"
+        f"Status: {card.get('status', 'unknown')} | "
+        f"Confidence: {card.get('confidence_score', 0):.0%}"
+        for card in cards
+    ])
+
+    try:
+        response = _client.messages.create(
+            model=_MODEL,
+            max_tokens=500,
+            system=_ANALYSIS_PROMPT,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Channel: #{channel_name} | Period: {period_label}\n\n"
+                    f"Questions from this channel:\n\n{cards_text}"
+                ),
+            }],
+        )
+        proposal_text = response.content[0].text.strip()
+    except Exception:
+        logger.exception("Claude proposal generation failed")
+        proposal_text = "Unable to generate proposal at this time."
+
+    return [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "Enhancement Proposal"},
+        },
+        {
+            "type": "context",
+            "elements": [{"type": "mrkdwn",
+                          "text": f"AI-generated from #{channel_name} · {period_label}"}],
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": proposal_text},
+        },
+        {"type": "divider"},
+        {
+            "type": "actions",
+            "elements": [
+                {"type": "button", "text": {"type": "plain_text", "text": "Approve"},
+                 "style": "primary", "action_id": "proposal_approve"},
+                {"type": "button", "text": {"type": "plain_text", "text": "Defer"},
+                 "action_id": "proposal_defer"},
+                {"type": "button", "text": {"type": "plain_text", "text": "Reject"},
+                 "style": "danger", "action_id": "proposal_reject"},
+            ],
+        },
+        {
+            "type": "context",
+            "elements": [{"type": "mrkdwn",
+                          "text": "Powered by Mira · Analysis based on this channel's questions only"}],
+        },
+    ]
 
 
 def run_proposal_engine(say, channel: str) -> None:

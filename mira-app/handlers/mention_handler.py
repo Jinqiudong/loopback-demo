@@ -95,12 +95,6 @@ def register_mention_handler(app):
         if not question_text:
             return
 
-        # Special trigger: @Mira analyze → run Enhancement Proposal engine
-        if re.search(r"\banalyze\b", question_text, re.IGNORECASE):
-            from pm.proposal_engine import run_proposal_engine
-            run_proposal_engine(say, channel=event["channel"])
-            return
-
         # Special trigger: @Mira insights → post Channel Insights period selector
         if re.search(r"\binsights?\b", question_text, re.IGNORECASE):
             from dashboard.channel_canvas import build_period_selector
