@@ -54,6 +54,7 @@ no manual action required from anyone:
 ```
 Signal 1 (clear confirm: ✅ / "got it" / "that fixed it")
   → Vault entry written, status: verified
+  → Source thread link preserved — every verified answer links back to where it came from
 
 Signal 2 (silence — the most common outcome)
   → Mira follows up once after 30 min
@@ -67,6 +68,19 @@ Signal 3 (explicit denial: "this didn't work")
 ```
 
 No resolver button clicks. No manual documentation. Knowledge accumulates from conversation.
+
+### 4. Channel Intelligence
+`@Mira insights` opens a time period selector. One click updates the **Channel Insights Canvas** —
+a live Slack Canvas showing what the team has been asking and what got resolved:
+
+```
+✅ Knowledge        — verified answers, grouped by topic
+💡 Answered Pending — answers awaiting confirmation
+❓ Open Questions   — unresolved questions still in progress
+```
+
+Questions are clustered semantically (not by keyword) — similar questions surface as one topic,
+not as a list of duplicates. The Canvas persists and updates each time a period is selected.
 
 ### 3. Product Manager *(the most novel part)*
 After enough resolved task cards accumulate, Mira analyzes patterns across them — not
@@ -117,6 +131,12 @@ Enhancement Proposal posted to Dashboard:
 > data — Mira surfaces what she noticed and what it might mean. The Product Owner reviews and
 > decides: approve, reject, or defer.
 
+**Act 4 — Channel Intelligence** *(what has the team been asking?)*
+> A PM types `@Mira insights` and selects **This Month**. The Channel Insights Canvas updates
+> instantly — verified answers grouped by topic, open questions still unresolved, source thread
+> links back to the original conversations. One view shows the team's knowledge health at a
+> glance: what's been figured out, what's still open, and where the answers came from.
+
 ---
 
 ## What makes this different
@@ -127,6 +147,8 @@ Enhancement Proposal posted to Dashboard:
 | Verifies answers | ✗ | Manual | Automatic |
 | Zero maintenance | ✓ | ✗ | ✓ |
 | Reads your codebase | ✗ | ✗ | ✓ (GitHub MCP) |
+| Links answers back to source threads | ✗ | ✗ | ✓ |
+| Channel knowledge health dashboard | ✗ | ✗ | ✓ (Canvas) |
 | Turns support into product backlog | ✗ | ✗ | ✓ |
 
 ---
@@ -141,12 +163,13 @@ Enhancement Proposal posted to Dashboard:
 | Button handlers + resolution detection | ✅ |
 | Real-Time Search API (Slack history) | ✅ |
 | Vault client + 3-signal auto-save | ✅ |
-| Knowledge Vault — pgvector + confidence (Jie) | ✅ code · ⏳ Supabase config |
+| Knowledge Vault — pgvector + semantic search (Jie) | ✅ |
+| Source thread links on verified answers | ✅ |
+| Channel Insights Canvas (`@Mira insights`) | ✅ |
 | GitHub MCP integration | ⏳ |
 | Data Dictionary MCP | ⏳ |
 | Pre-escalation requester check-in | ⏳ |
 | Enhancement Proposal engine (Claude-powered) | ⏳ |
-| Slack Canvas Dashboard | ⏳ |
 | Railway deploy + demo recording | ⏳ |
 
 ---
