@@ -49,7 +49,10 @@ loopback-demo/
 │   │   └── proposal_engine.py         🔵  Claude-powered Enhancement Proposal from Vault patterns
 │   │
 │   └── dashboard/
-│       └── home_view.py               🔵  App Home Dashboard (Block Kit, stub → Canvas in Week 3)
+│       ├── home_view.py               🔵  App Home Dashboard (Block Kit, legacy)
+│       └── channel_canvas.py          🟢  Channel Insights Canvas — @Mira insights
+│                                          Three sections: Knowledge / Pending / Open
+│                                          Semantic clustering, time period filter
 │
 ├── vault-service/                     🟢  JIE'S SIDE — do not edit without checking in
 │   ├── requirements.txt               🟢

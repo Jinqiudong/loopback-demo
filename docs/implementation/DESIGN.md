@@ -282,11 +282,8 @@ originally asked a related question. Closes the loop: their feedback drove the f
 
 ## Current build status
 
-- ✅ Week 1, Day 1-2: Slack Bolt skeleton, intent classification, draft task card.
-- ✅ Week 1, Day 3-5: VaultClient + stub mode, full card lifecycle, button handlers.
-- ✅ Week 1, Day 6+: Resolution detection, Real-Time Search API, App Home Dashboard (Block Kit), clarifying question flow, bug fixes. Vault merged (Jie). Full cold-start cycle demonstrated end-to-end.
-- ⏳ Week 2 (6/26–7/6): GitHub MCP + Data Dictionary MCP, DM to resolver flow, Enhancement Proposal engine skeleton. Jie: Supabase config, real Vault live.
-- ⏳ Week 3 (7/6–7/9): Canvas Dashboard, Enhancement Proposal UI, integration sprint, seed data, staging deploy.
-- ⏳ Week 4 (7/10–7/13): Demo recording, Devpost submission.
+- ✅ Week 1: Slack Bolt, intent classification, task card (all 7 states), Vault client, resolution detection, Real-Time Search API, direction check, Enhancement Proposal engine (@Mira analyze).
+- ✅ Week 2: Channel Insights Canvas (Jie) — @Mira insights, 3 sections, semantic clustering, time period filter. Task card redesign (header block, source thread). Python-side cosine similarity. Real Vault live (VAULT_STUB=false, Supabase + embeddings working). Full cold-start cycle end-to-end in real Slack. GitHub MCP live (reads loopback-analytics repo).
+- ⏳ Week 3–4 (7/3–7/13): Railway deployment, MCP protocol fix or claim update, demo recording, Devpost submission. See `implementation-plan.md` for day-by-day.
 
 See `implementation-plan.md` (same folder) for the day-by-day breakdown.

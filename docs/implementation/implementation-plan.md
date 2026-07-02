@@ -80,83 +80,60 @@ real Supabase connection pending credentials handoff.
 
 ---
 
-### Week 2 — 6/26 to 7/6: Independent Build Window
+### Week 2 — 6/26 to 7/6: Independent Build Window ✅ COMPLETE
 
-Jie completes Vault mechanism. Jinqiu continues v2 features.
-
-#### Jie — Vault completion
+#### Jie — Vault + Canvas (loopback-3 branch)
 - [x] Full three-signal logic (signal_1/2/3)
-- [x] Confidence accumulation across independent users
+- [x] Confidence accumulation (Python-side cosine similarity, not pgvector RPC)
 - [x] version_history push-on-update (signal_3)
-- [ ] 30-minute timer + follow-up + second-silence fallback
-- [ ] Supabase credentials shared with Jinqiu → VAULT_STUB=false
-- [ ] Smoke test against real Supabase (smoke_test.py)
+- [x] source_thread tracking on vault entries
+- [x] Channel Insights Canvas (`dashboard/channel_canvas.py`) — @Mira insights trigger
+- [x] Three Canvas sections: ✅ Knowledge / 💡 Pending / ❓ Open, with semantic clustering
+- [x] Time period buttons (This Month / Quarter / Year)
+- [x] Enhancement Opportunity integrated into Canvas
+- [x] Task card redesign — header block, question not repeated, source thread link
+- [x] Supabase live (VAULT_STUB=false, real embeddings working)
+- [x] Full cold-start cycle demonstrated end-to-end in real Slack workspace
 
-#### Jinqiu — v2 features (loopback-2 branch)
-- [x] GitHub MCP (mcp_github.py)
-- [x] Direction check handler (direction_handler.py)
-- [x] Enhancement Proposal engine (pm/proposal_engine.py)
-- [x] loopback-analytics repo created with realistic demo data
-- [ ] GITHUB_TOKEN configured → GitHub MCP live
-- [ ] Canvas Dashboard (replaces Block Kit App Home)
-
-> **Simplification fallback:** if signal_2's two-tier logic is taking too long, ship signal_1 and
-> signal_3 fully first, treat everything else as a single "unconfirmed, low confidence" bucket,
-> and refine in Week 3 if time allows.
-
-> 📅 Calendar: "LoopBack: Independent Build Window" — 6/26–7/6, all-day block on Jie's calendar
+#### Jinqiu (loopback-2 / loopback-3)
+- [x] GitHub MCP (mcp_github.py) — REST API to loopback-analytics, finds root causes
+- [x] Direction check handler (resolution_handler.py unified)
+- [x] Enhancement Proposal engine (@Mira analyze, Claude-powered)
+- [x] loopback-analytics repo with realistic SQL + data dictionary + known issues
+- [x] GITHUB_TOKEN configured, GitHub MCP live in production
 
 ---
 
-### Week 3 — 7/6 to 7/9: Integration Sprint
+### Week 3 — 7/6 to 7/13: Polish + Demo + Submission
+*(Today is 7/2. 11 days to deadline.)*
 
-#### Day 1 (7/6) — Both: Merge & debug
-- [ ] Pull Jie's 10 days of progress, run a full integration test
-- [ ] Resolve any interface mismatches (field names, response formats) from independent work
-- [ ] Confirm full loop end-to-end: first question → escalate → resolver answers → three-signal judgment → written to Vault → second identical question → instant Verified Answer
+#### Must-do before recording (7/3–7/9)
 
-> 📅 Calendar: "LoopBack: Integration Sprint Kickoff" — 7/6, 6:00–7:00 PM ET
+- [ ] **Railway deployment** — switch Socket Mode → HTTP mode, deploy mira-app
+- [ ] **MCP claim fix** — either wire real MCP protocol (stdio/HTTP) OR remove MCP from required tech claims and rely solely on Real-Time Search API (already confirmed working). Do NOT submit claiming MCP if it's REST API — technical judges will flag it.
+- [ ] **Verify button → vault write end-to-end** — confirm action_handler.py "Yes resolved ✓" / "Not quite" buttons correctly call upsert_entry with signal_1/signal_3
+- [ ] **Seed 5–10 vault entries** for demo so Act 2 (Vault hit) is reliable
+- [ ] **Share sandbox** with `slackhack@salesforce.com` and `testing@devpost.com` — do this early, don't leave for last minute
+- [ ] **Devpost page draft** — project story, architecture diagram, built-with tags
+- [ ] *(nice-to-have)* Proactive proposal trigger after N resolved cards in a channel
 
-#### Day 2 (7/7) — Jinqiu: Dashboard
-- [ ] App Home Dashboard UI (Block Kit)
-- [ ] Entry list: question, answer, status badge, owner, confidence, usage count
-- [ ] Expand-to-view full task card history per entry
-- [ ] Version timeline display for outdated/updated entries
+#### Demo recording (7/10)
+- [ ] Rehearse 3-act script — Act 1 (cold start + MCP finds root cause + direction check), Act 2 (Vault hit), Act 3 (Canvas + Enhancement Proposal)
+- [ ] **First 60 seconds must be the strongest** — judges evaluate this hardest (official guidance)
+- [ ] Jie plays BA (asks question, replies yes, gives ✅), Jinqiu plays DE (answers in thread), Jinqiu plays Product Owner (approves proposal)
+- [ ] Record 2–3 takes, keep cleanest one under 3:00
+- [ ] Upload to YouTube/Vimeo, set to Public
 
-#### Day 3 (7/8) — Both: Task card polish + clarification
-- [ ] Task card visual polish across every stage (draft → ai_searching → human_working → pending_confirm → verified/unconfirmed)
-- [ ] Clarifying question mechanism for the 0.7–0.85 confidence band
-- [ ] Seed 15–20 real Verified Answer entries covering the demo scenarios
+#### Devpost submission (7/11–7/12)
+- [ ] Final project story copy (update docs/submission/project-story.md)
+- [ ] Screenshots: task card at each major state + Canvas view (3:2 ratio, at least 3)
+- [ ] Built With: Real-Time Search API, Claude (Anthropic), Supabase, Slack Canvas API, Slack Bolt
+- [ ] GitHub repo public + clean README
+- [ ] Double-check sandbox access for judges
 
-#### Day 4 (7/9) — Both: Bug fixes + staging
-- [ ] Handle edge cases: bot restarts, Slack API rate limits
-- [ ] Deploy to Railway, test against a real Slack workspace
-- [ ] Have someone unfamiliar with the project try it, collect first-round feedback
-
----
-
-### Week 4 — 7/10 to 7/13: Demo + Submission
-
-#### 7/10 (Fri) — Demo recording
-- [ ] Write demo script following the Inspiration → What it does narrative arc
-- [ ] Two Slack accounts: Jinqiu plays User, Jie plays resolver
-- [ ] Record 2–3 takes, pick the best, keep under 3 minutes
-- [ ] Set video to Public
-
-> 📅 Calendar: "LoopBack: Demo Recording Day" — 7/10, 1:00–5:00 PM ET
-
-#### 7/11 (Sat) — Devpost page
-- [ ] Elevator pitch
-- [ ] Project Story (with all 4 diagrams embedded) — draft in `docs/submission/project-story.md`
-- [ ] Architecture diagram
-- [ ] Built With: MCP, RTS API, Slack AI, Claude, Supabase
-- [ ] Screenshots at 3:2 ratio, at least 3 (task card stages + dashboard)
-- [ ] GitHub repo README cleanup
-
-> 📅 Calendar: "LoopBack: Devpost Page + Submission Materials" — 7/11, 10:00 AM–6:00 PM ET
-
-#### 7/12 (Sun) — Sandbox + final testing
-- [ ] Sandbox URL ready
+#### 7/13 — Submit by 5pm PT
+- [ ] Full checklist review
+- [ ] Submit with buffer — do not wait until the last minute
 - [ ] Share with `testing@devpost.com` + `slackhack@salesforce.com`
 - [ ] Final bug check
 
