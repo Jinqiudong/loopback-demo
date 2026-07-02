@@ -18,6 +18,10 @@ from slack_sdk import WebClient
 
 logger = logging.getLogger(__name__)
 
+_SLACK_USER_TOKEN = os.environ.get("SLACK_USER_TOKEN", "")
+_MIN_ANSWER_LENGTH = 40
+_BOT_MENTION_PATTERN = r"<@[A-Z0-9]+>"
+
 
 def _is_valid_answer(text: str) -> bool:
     if len(text) < _MIN_ANSWER_LENGTH:
@@ -27,10 +31,6 @@ def _is_valid_answer(text: str) -> bool:
     if text.strip().endswith("?"):
         return False
     return True
-
-_SLACK_USER_TOKEN = os.environ.get("SLACK_USER_TOKEN", "")
-_MIN_ANSWER_LENGTH = 40  # skip very short messages that are unlikely to be answers
-_BOT_MENTION_PATTERN = r"<@[A-Z0-9]+>"  # skip messages that are directed at a bot
 
 
 def search_slack_history(query: str, count: int = 3) -> list[dict[str, Any]]:

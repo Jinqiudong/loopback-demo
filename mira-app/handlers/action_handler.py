@@ -76,7 +76,7 @@ def register_action_handlers(app):
         vault_hit = value.get("vault_hit", False)
         channel = body["channel"]["id"]
         message_ts = body["message"]["ts"]
-        question_text = _extract_question(body)
+        question_text = value.get("question", "")
 
         try:
             _vault.update_status(task_card_id, "escalate")
@@ -136,6 +136,27 @@ def register_action_handlers(app):
     @app.action("insights_this_year")
     def handle_insights_year(ack, body, client, logger):
         _handle_insights("year", ack, body, client, logger)
+
+    @app.action("proposal_approve")
+    def handle_proposal_approve(ack, body, say, logger):
+        ack()
+        say(channel=body["channel"]["id"],
+            thread_ts=body["message"].get("thread_ts", body["message"]["ts"]),
+            text="Approved. Adding to the product backlog.")
+
+    @app.action("proposal_defer")
+    def handle_proposal_defer(ack, body, say, logger):
+        ack()
+        say(channel=body["channel"]["id"],
+            thread_ts=body["message"].get("thread_ts", body["message"]["ts"]),
+            text="Deferred. Mira will resurface this when more data accumulates.")
+
+    @app.action("proposal_reject")
+    def handle_proposal_reject(ack, body, say, logger):
+        ack()
+        say(channel=body["channel"]["id"],
+            thread_ts=body["message"].get("thread_ts", body["message"]["ts"]),
+            text="Noted. Proposal rejected.")
 
 
 

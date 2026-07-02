@@ -53,7 +53,7 @@ def register_mention_handler(app):
         if not question_text:
             return
 
-        # Special trigger: @Mira insights → post Channel Insights period selector
+        # Special trigger: @Mira insights → Channel Insights Canvas period selector
         if re.search(r"\binsights?\b", question_text, re.IGNORECASE):
             from dashboard.channel_canvas import build_period_selector
             say(
@@ -61,6 +61,35 @@ def register_mention_handler(app):
                 blocks=build_period_selector(event["channel"]),
                 text="Which time period would you like to see?",
             )
+            return
+
+        # Special trigger: @Mira analyze → Enhancement Proposal engine
+        if re.search(r"\banalyze\b", question_text, re.IGNORECASE):
+            from pm.proposal_engine import generate_opportunities
+            cards = _vault.get_channel_insights(event["channel"], since="month")
+            opportunities = generate_opportunities(cards, "This Month")
+            if opportunities:
+                opp = opportunities[0]
+                bullets = "\n".join(f"• {b}" for b in opp.get("bullets", []))
+                say(
+                    channel=event["channel"],
+                    blocks=[
+                        {"type": "header", "text": {"type": "plain_text", "text": "Enhancement Opportunity"}},
+                        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"AI-generated from {opp.get('related_count', 0)} related questions"}]},
+                        {"type": "divider"},
+                        {"type": "section", "text": {"type": "mrkdwn", "text": f"*{opp.get('title', '')}*\n{bullets}"}},
+                        {"type": "divider"},
+                        {"type": "actions", "elements": [
+                            {"type": "button", "text": {"type": "plain_text", "text": "Approve"}, "style": "primary", "action_id": "proposal_approve"},
+                            {"type": "button", "text": {"type": "plain_text", "text": "Defer"}, "action_id": "proposal_defer"},
+                            {"type": "button", "text": {"type": "plain_text", "text": "Reject"}, "style": "danger", "action_id": "proposal_reject"},
+                        ]},
+                    ],
+                    text="Enhancement Opportunity from Mira",
+                )
+            else:
+                say(channel=event["channel"],
+                    text="Not enough resolved questions yet to identify patterns.")
             return
 
         result = classify_intent(question_text)
@@ -125,7 +154,7 @@ def register_mention_handler(app):
         context_summary = investigate(question_text)
 
         if context_summary:
-            _vault.update_status(task_card_id, "pending_confirm")
+            # Don't update DB status yet — wait for requester to confirm direction
             _update_card(client, channel, card_ts, question_text, "direction_check",
                          thread_ts=thread_ts, asker_id=asker_id,
                          context_summary=context_summary)
