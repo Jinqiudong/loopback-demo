@@ -267,39 +267,43 @@ the human to decide.
 
 **Track:** New Slack Agent (First: $8k, Second: $4k)
 
-**Specialty prizes to also target (each $2,000):**
-- Best UX — Canvas Dashboard + task card lifecycle is the demo vehicle
-- Most Innovative — Enhancement Proposal engine (PM identity) + confidence accumulation
-- Best Technological Implementation — Claude + pgvector + Real-Time Search + GitHub MCP + Data Dictionary MCP
+**Prize structure — read carefully:**
+- 1st Place New Slack Agent: $8,000 + Dreamforce pass + cert voucher
+- 2nd Place: $4,000
+- **IMPORTANT: 1st/2nd place winners are INELIGIBLE for specialty prizes.**
+  Specialty prizes go to other teams. Do NOT spread energy trying to win both.
+  Focus entirely on winning the main track.
 
-**Required technology — all three covered in v2:**
-- ✅ Slack AI capabilities → Claude intent classification + answer extraction
-- ✅ MCP server integration → GitHub MCP + Data Dictionary MCP (Tier 2 search)
-- ✅ Real-Time Search API → Slack history search (Tier 2 search)
+**Required technology — what actually counts:**
+- ✅ **Real-Time Search API** → `slack_search.py` — this is our clearest required tech claim
+- ⚠️ **MCP server integration** → `mcp_github.py` currently uses GitHub REST API, NOT the MCP protocol. Judges may flag this. Either fix it to use real MCP stdio/HTTP, or drop the MCP claim and rely on Real-Time Search API alone.
+- ⚠️ **Slack AI capabilities** → The resource page refers to Slack's own Agent Builder templates, NOT Claude. Our use of Claude is legitimate but should be framed as "AI-powered" not "Slack AI capabilities."
+- **Safe claim**: Real-Time Search API (confirmed working). That's enough — only 1 required.
+
+**Critical demo guidance (from official updates):**
+The first 60 seconds of the demo video are what judges evaluate most heavily.
+The video must show a WORKING project, not slides. Under 3 minutes total.
+Upload to YouTube/Vimeo — set to Public before submitting.
 
 **What Slack actually wants (read before building anything):**
 Slack (owned by Salesforce) is competing against Microsoft Teams + Copilot.
-Their platform thesis: Slack should be the AI-native work OS, not a notification
-channel. They want agents that only work BECAUSE they're in Slack — where the
-conversation, the knowledge, and the UI surface are all Slack-native.
-LoopBack's "knowledge stays in Slack, Mira never relays" design is exactly this.
-The Real-Time Search API and MCP are two APIs Slack is actively pushing — using
-them signals that we understand their platform direction.
+Their platform thesis: Slack should be the AI-native work OS, not a notification channel.
+The official resources say: "solve a real, specific workflow problem inside Slack rather
+than wrap a generic chatbot in a Slack UI." LoopBack's design — knowledge stays in Slack,
+Mira never relays, Channel Insights Canvas — is exactly this.
 
 **What gets submitted:**
 - Project Track: New Slack Agent
-- Text description of features/functionality
-- ~3-minute demo video — **must show real, working footage**, not slides
+- Text description of features/functionality (in English)
+- Demo video under 3 minutes — **must show real, working footage**. First 60s are critical.
 - Architecture diagram
-- Slack developer sandbox URL, shared with both
-  `slackhack@salesforce.com` and `testing@devpost.com`
+- Slack developer sandbox URL — share with `slackhack@salesforce.com` AND `testing@devpost.com` BEFORE the deadline. Do not forget this step.
 
-**Judging criteria — all four matter, plus specialty prizes:**
-1. Technological Implementation — code quality + real use of required tech
-2. Design — UX quality, Block Kit sophistication, frontend/backend balance
+**Judging criteria (equally weighted):**
+1. Technological Implementation — real use of required tech + code quality
+2. Design — UX quality, Slack-native surfaces (Block Kit + Canvas), frontend/backend balance
 3. Potential Impact — reach within Slack community and beyond
-4. Quality of the Idea — uniqueness vs. Slack AI / Guru / Tettra; the Resolution
-   Cycle and verification mechanism must come through clearly in both code and demo
+4. Quality of the Idea — uniqueness vs. Slack AI / Guru / Tettra
 
 ---
 
