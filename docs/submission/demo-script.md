@@ -189,8 +189,11 @@ Fade to logo.
 - [ ] Confirm Enhancement Opportunity generates relevant insight for the approval rate pattern
 
 **Loop diagram:**
-- [ ] Diagram designed in Figma/Excalidraw
-- [ ] Three states ready: after Act 1, after Act 2, full reveal
+- Excalidraw source: https://excalidraw.com/#json=6aOyvnQyQ9se8Lbt24sof,p81gkch2FgQ3U97Ij7g3AA
+- [ ] Export full-reveal version as PNG → save to `docs/submission/diagrams/loop-diagram-full.png`
+- [ ] Create Act 1 version (blue path only) → `loop-diagram-act1.png`
+- [ ] Create Act 2 version (blue + green paths) → `loop-diagram-act2.png`
+- [ ] Three PNG files ready for video editing
 
 **Final checks:**
 - [ ] Dry run — time each act, all cards update correctly
