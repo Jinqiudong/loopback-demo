@@ -54,3 +54,32 @@ def classify_intent(message_text: str) -> IntentResult:
 
     is_question = label.startswith("QUESTION")
     return IntentResult(is_question=is_question, raw_label=label)
+
+
+_RESOLUTION_SYSTEM_PROMPT = """You are reading a Slack message sent by someone \
+who previously asked a question in a thread. Decide whether this message signals \
+that their question has been answered and they are satisfied — regardless of exact \
+wording, language, or tone.
+
+Examples of RESOLVED: "thanks", "got it", "ok cool", "makes sense", "alright", \
+"好的谢谢", "明白了", "👍 got it", "that works", "perfect".
+Examples of ONGOING: "still not sure", "what do you mean", "can you clarify", \
+"that didn't work", "but what about".
+
+Respond with exactly one word: RESOLVED or ONGOING. Nothing else."""
+
+
+def classify_resolution(message_text: str) -> bool:
+    """Return True if the asker's message signals the question was resolved."""
+    try:
+        response = _client.messages.create(
+            model=_MODEL,
+            max_tokens=10,
+            system=_RESOLUTION_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": message_text}],
+        )
+        label = response.content[0].text.strip().upper()
+    except Exception:
+        label = "ONGOING"
+
+    return label.startswith("RESOLVED")

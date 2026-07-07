@@ -158,6 +158,53 @@ def register_action_handlers(app):
             thread_ts=body["message"].get("thread_ts", body["message"]["ts"]),
             text="Noted. Proposal rejected.")
 
+    @app.action("ambient_save_yes")
+    def handle_ambient_save_yes(ack, body, client, logger):
+        ack()
+        value = _parse_value(body)
+        question = value.get("question", "")
+        answer = value.get("answer", "")
+        asker_id = value.get("asker_id", "")
+        resolver_id = value.get("resolver_id", "")
+        thread_ts = value.get("thread_ts", "")
+        channel = value.get("channel") or body["channel"]["id"]
+        source_thread = _thread_permalink(channel, thread_ts)
+
+        try:
+            task_card_id = _vault.create_task_card(
+                requester_id=asker_id,
+                channel_id=channel,
+                thread_ts=thread_ts,
+                question_raw=question,
+            )
+            _vault.upsert_entry(
+                task_card_id=task_card_id,
+                question_canonical=question,
+                answer=answer,
+                owner_id=resolver_id,
+                signal="signal_1",
+                source_thread=source_thread,
+            )
+        except Exception:
+            logger.exception("Ambient vault save failed")
+
+        client.chat_update(
+            channel=body["channel"]["id"],
+            ts=body["message"]["ts"],
+            blocks=[{"type": "section", "text": {"type": "mrkdwn", "text": "Saved to the Knowledge Vault ✓"}}],
+            text="Saved to the Knowledge Vault ✓",
+        )
+
+    @app.action("ambient_save_no")
+    def handle_ambient_save_no(ack, body, client, logger):
+        ack()
+        client.chat_update(
+            channel=body["channel"]["id"],
+            ts=body["message"]["ts"],
+            blocks=[{"type": "section", "text": {"type": "mrkdwn", "text": "Got it, I'll leave this one."}}],
+            text="Got it, I'll leave this one.",
+        )
+
 
 
 def _parse_value(body: dict) -> dict:

@@ -4,11 +4,17 @@ Unified message handler for two thread states:
 1. direction_check — requester's "yes" confirms Mira's findings → escalate to resolver
 2. human_working   — resolver's reply → update card to pending_confirm
 
+Also handles passive ambient detection: threads Mira was never @-mentioned in.
+When a reply arrives in a thread whose parent looks like a question, Mira offers
+to save the Q&A to the Vault without requiring an @-mention.
+
 Single handler avoids Slack Bolt multi-handler conflicts.
 """
 
+import json
 import re
 
+from services.intent import classify_resolution
 from services.task_card import build_task_card
 from services.vault_client import VaultClient
 
@@ -20,8 +26,17 @@ _active_threads: dict = {}
 # direction_check threads: {thread_ts → task context + context_summary}
 _direction_threads: dict = {}
 
+# threads where Mira already sent (or decided not to send) an ambient nudge
+_seen_ambient_threads: set = set()
+
 _POSITIVE_PATTERNS = re.compile(
     r"\b(yes|yeah|yep|correct|right|exactly|confirm|go ahead|proceed|looks right|that'?s? it)\b",
+    re.IGNORECASE,
+)
+
+# Answers that redirect rather than resolve — not worth saving
+_DEFLECTION_PATTERNS = re.compile(
+    r"\b(create|open|submit|file|raise|log)\s+a?\s*(ticket|jira|issue|bug report|pr)\b",
     re.IGNORECASE,
 )
 
@@ -53,6 +68,7 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
         thread_ts = event.get("thread_ts")
         user = event.get("user", "")
         text = event.get("text", "").strip()
+        channel = event.get("channel", "")
 
         if not thread_ts or not user or user == bot_user_id or event.get("subtype"):
             return
@@ -95,6 +111,8 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
 
         # ── Resolution detection: resolver answers in human_working thread ─
         if thread_ts not in _active_threads:
+            # Mira wasn't invoked — check if this looks like an ambient Q&A
+            _maybe_nudge_ambient(thread_ts, user, text, channel, client, logger)
             return
 
         if not text:
@@ -131,3 +149,89 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
         )
 
         logger.info(f"Resolution detected in {thread_ts} by {resolver_id}")
+
+    def _maybe_nudge_ambient(thread_ts, user, text, channel, client, logger):
+        """Nudge to save when the original asker signals the question was resolved."""
+        if thread_ts in _seen_ambient_threads:
+            return
+
+        try:
+            replies = client.conversations_replies(channel=channel, ts=thread_ts, limit=20)
+            messages = replies.get("messages", [])
+            if len(messages) < 2:
+                return
+
+            parent = messages[0]
+            asker_id = parent.get("user", "")
+            parent_text = parent.get("text", "")
+
+            # Only care when the original asker is replying
+            if user != asker_id:
+                return
+
+            # Claude decides if this signals resolution — works in any language/phrasing
+            if not classify_resolution(text):
+                return
+
+            # Mark seen now so further messages in this thread don't re-trigger
+            _seen_ambient_threads.add(thread_ts)
+
+            # Find the most recent substantive answer (from someone other than the asker)
+            answer_msg = None
+            for msg in reversed(messages[1:]):
+                msg_user = msg.get("user", "")
+                if msg_user and msg_user != asker_id:
+                    answer_msg = msg
+                    break
+
+            if not answer_msg:
+                return
+
+            answer_text = answer_msg.get("text", "")
+
+            # Skip deflections ("please create a ticket", etc.)
+            if _DEFLECTION_PATTERNS.search(answer_text):
+                return
+
+            ctx = json.dumps({
+                "question": parent_text[:500],
+                "answer": answer_text[:500],
+                "asker_id": asker_id,
+                "resolver_id": answer_msg.get("user", ""),
+                "thread_ts": thread_ts,
+                "channel": channel,
+            })
+            client.chat_postMessage(
+                channel=channel,
+                thread_ts=thread_ts,
+                blocks=[
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "Looks like this was resolved! Want me to save it to the Knowledge Vault?",
+                        },
+                    },
+                    {
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {"type": "plain_text", "text": "Save it ✓"},
+                                "style": "primary",
+                                "action_id": "ambient_save_yes",
+                                "value": ctx,
+                            },
+                            {
+                                "type": "button",
+                                "text": {"type": "plain_text", "text": "No thanks"},
+                                "action_id": "ambient_save_no",
+                                "value": ctx,
+                            },
+                        ],
+                    },
+                ],
+                text="Looks like this was resolved! Want me to save it to the Knowledge Vault?",
+            )
+        except Exception:
+            logger.exception("Ambient Q&A nudge failed for thread %s", thread_ts)
