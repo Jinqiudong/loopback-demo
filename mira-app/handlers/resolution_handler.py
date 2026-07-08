@@ -27,8 +27,24 @@ _active_threads: dict = {}
 # direction_check threads: {thread_ts → task context + context_summary}
 _direction_threads: dict = {}
 
+# pending_confirm threads where user may type instead of clicking button
+_pending_threads: dict = {}
+
 # threads where Mira already sent (or decided not to send) an ambient nudge
 _seen_ambient_threads: set = set()
+
+
+def register_pending_thread(thread_ts, card_ts, channel, question_text, asker_id, task_card_id, answer, vault_hit):
+    """Track pending_confirm threads so text replies are handled."""
+    _pending_threads[thread_ts] = {
+        "card_ts": card_ts,
+        "channel": channel,
+        "question_text": question_text,
+        "asker_id": asker_id,
+        "task_card_id": task_card_id,
+        "answer": answer,
+        "vault_hit": vault_hit,
+    }
 
 
 def register_active_thread(thread_ts, card_ts, channel, question_text, asker_id, task_card_id):
@@ -147,6 +163,45 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
                     ],
                     text="Want me to save this to the Knowledge Vault?",
                 )
+            return
+
+        # ── Pending confirm: user typed instead of clicking button ────────────
+        if thread_ts in _pending_threads:
+            task = _pending_threads[thread_ts]
+            if user == task["asker_id"]:
+                direction = classify_direction_response(text)
+                if direction == "RESOLVED":
+                    _pending_threads.pop(thread_ts)
+                    # treat same as button click "This helped"
+                    client.chat_update(
+                        channel=task["channel"],
+                        ts=task["card_ts"],
+                        blocks=build_task_card(
+                            task["question_text"], status="verified",
+                            results=[{"task_card_id": task["task_card_id"],
+                                      "answer": task["answer"], "confidence": 0.95,
+                                      "verified": True, "owner_id": ""}],
+                            thread_ts=thread_ts, asker_id=task["asker_id"],
+                            vault_hit=task["vault_hit"],
+                        ),
+                        text=f"[verified] {task['question_text']}",
+                    )
+                elif direction == "ESCALATE" or "no" in text.lower() or "doesn't" in text.lower() or "not" in text.lower():
+                    _pending_threads.pop(thread_ts)
+                    _vault.update_status(task["task_card_id"], "escalate")
+                    client.chat_update(
+                        channel=task["channel"],
+                        ts=task["card_ts"],
+                        blocks=build_task_card(
+                            task["question_text"], status="escalate",
+                            thread_ts=thread_ts, asker_id=task["asker_id"],
+                        ),
+                        text=f"[escalate] {task['question_text']}",
+                    )
+                    register_active_thread(
+                        thread_ts, task["card_ts"], task["channel"],
+                        task["question_text"], task["asker_id"], task["task_card_id"],
+                    )
             return
 
         # ── Resolution detection: resolver answers in human_working thread ─
@@ -344,14 +399,21 @@ def _investigate_proactively(text: str, channel: str, message_ts: str,
         return
 
     if vault_result["match_found"]:
+        confidence = vault_result.get("confidence", 0)
+        vault_hit = confidence >= 0.82
         _vault.update_status(task_card_id, "pending_confirm")
         client.chat_update(
             channel=channel, ts=card_ts,
             blocks=build_task_card(text, status="pending_confirm",
                                    results=[{**vault_result, "task_card_id": task_card_id}],
                                    thread_ts=message_ts, asker_id=asker_id,
-                                   vault_hit=vault_result.get("confidence", 0) >= 0.70),
+                                   vault_hit=vault_hit),
             text=f"[pending_confirm] {text}",
+        )
+        register_pending_thread(
+            thread_ts=message_ts, card_ts=card_ts, channel=channel,
+            question_text=text, asker_id=asker_id, task_card_id=task_card_id,
+            answer=vault_result.get("answer", ""), vault_hit=vault_hit,
         )
         return
 

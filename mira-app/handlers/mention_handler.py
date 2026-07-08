@@ -18,7 +18,7 @@ from services.intent import classify_intent
 from services.investigator import investigate
 from services.task_card import build_task_card
 from services.vault_client import VaultClient
-from handlers.resolution_handler import register_active_thread, register_direction_thread
+from handlers.resolution_handler import register_active_thread, register_direction_thread, register_pending_thread
 
 _MENTION_PATTERN = re.compile(r"<@[A-Z0-9]+>")
 _vault = VaultClient()
@@ -136,17 +136,19 @@ def register_mention_handler(app):
 
             _vault.update_status(task_card_id, "pending_confirm")
 
-            if confidence >= _VAULT_HIGH_CONFIDENCE:
-                _update_card(client, channel, card_ts, question_text, "pending_confirm",
-                             results=result_payload,
-                             thread_ts=thread_ts, asker_id=asker_id, vault_hit=True)
-            else:
-                # Medium confidence: show answer but post clarifying question
-                _update_card(client, channel, card_ts, question_text, "pending_confirm",
-                             results=result_payload,
-                             thread_ts=thread_ts, asker_id=asker_id, vault_hit=False)
-                say(channel=channel, thread_ts=thread_ts,
-                    text=f"I found something that might be related — is this the same as what you're asking? ({int(confidence * 100)}% match)")
+            vault_hit = confidence >= _VAULT_HIGH_CONFIDENCE
+            _update_card(client, channel, card_ts, question_text, "pending_confirm",
+                         results=result_payload,
+                         thread_ts=thread_ts, asker_id=asker_id, vault_hit=vault_hit)
+
+            # Register so text replies ("no", "doesn't help") are handled
+            register_pending_thread(
+                thread_ts=thread_ts, card_ts=card_ts, channel=channel,
+                question_text=question_text, asker_id=asker_id,
+                task_card_id=task_card_id,
+                answer=vault_result.get("answer", ""),
+                vault_hit=vault_hit,
+            )
             return
 
         # ── Tier 2: Agentic investigation (Claude tool use) ──────────────
