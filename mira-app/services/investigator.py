@@ -85,14 +85,21 @@ A team member has asked a question. Your job is to investigate using the availab
 and surface the most relevant information to help answer it.
 
 Strategy:
-1. Start with a GitHub search to find relevant schema or metric definitions
-2. If you find a promising file, read it fully
-3. Check the known issues doc — it often contains root causes
-4. Search Slack history if codebase search wasn't enough
+1. Search GitHub with simple, broad terms (e.g. "product_type", "approval_rate", "raw_applications")
+2. If you find a promising file, read it fully with read_file
+3. Try reading key files directly if search doesn't return results: "schema/raw_applications.sql", "schema/da_approval_metrics.sql", "metrics/approval_rate.sql", "data_dictionary.md"
+4. Search Slack history as a last resort
 
 When you have enough information, stop calling tools and summarise your findings
-in 3-5 concise bullet points. Be specific: cite file names, field names, issue numbers,
-or concrete facts you found. Do not make up anything you did not find through the tools."""
+in 3-5 concise bullet points. Be specific: cite file names, field names, or concrete
+facts you found. Do not make up anything you did not find through the tools.
+
+IMPORTANT — Slack formatting rules (do NOT use standard markdown):
+- Use *text* for bold (NOT **text**)
+- Use _text_ for italic
+- Use bullet points with - or •
+- No headers with # or ##
+- Keep it short and scannable"""
 
 
 def _execute_tool(tool_name: str, tool_input: dict) -> str:
