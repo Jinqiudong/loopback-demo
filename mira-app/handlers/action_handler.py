@@ -185,6 +185,8 @@ def register_action_handlers(app):
                 signal="signal_1",
                 source_thread=source_thread,
             )
+            # Update task card status so Channel Insights counts it correctly
+            _vault.update_status(task_card_id, "verified")
         except Exception:
             logger.exception("Ambient vault save failed")
 

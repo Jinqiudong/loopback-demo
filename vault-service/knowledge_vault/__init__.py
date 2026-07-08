@@ -385,12 +385,18 @@ def get_channel_task_cards(channel_id: str, since: str) -> list[dict]:
         emb = ve.get("embedding")
         if isinstance(emb, str):
             emb = json.loads(emb)
+        # Build thread permalink — use stored one or construct from thread_ts
+        source_thread = ve.get("source_thread")
+        if not source_thread and card.get("thread_ts"):
+            ts_compact = card["thread_ts"].replace(".", "")
+            source_thread = f"https://slack.com/archives/{channel_id}/p{ts_compact}"
+
         enriched.append({
             "task_card_id": card["id"],
             "question": ve.get("question_canonical") or card["question_raw"],
             "status": card["status"],
             "thread_ts": card["thread_ts"],
-            "source_thread": ve.get("source_thread"),
+            "source_thread": source_thread,
             "confidence_score": ve.get("confidence_score", 0.0),
             "embedding": emb,
             "owner_id": ve.get("owner_id"),
