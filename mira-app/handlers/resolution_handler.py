@@ -81,10 +81,43 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
                                          user, client, logger)
             return
 
-        # ── Direction check: requester confirms Mira's findings ──────────
+        # ── Direction check: requester responds to Mira's findings ──────────
         if thread_ts in _direction_threads:
             task = _direction_threads[thread_ts]
-            if user == task["asker_id"] and _POSITIVE_PATTERNS.search(text):
+            if user != task["asker_id"]:
+                return
+
+            # Resolution signal: asker says "thanks / makes sense / got it"
+            # → Mira's investigation itself answered the question, offer to save
+            if classify_resolution(text):
+                task_data = _direction_threads.pop(thread_ts)
+                _seen_ambient_threads.add(thread_ts)
+                ctx = json.dumps({
+                    "question": task_data["question_text"],
+                    "answer": task_data.get("context_summary", ""),
+                    "asker_id": task_data["asker_id"],
+                    "resolver_id": "",
+                    "thread_ts": thread_ts,
+                    "channel": task_data["channel"],
+                })
+                client.chat_postMessage(
+                    channel=task_data["channel"],
+                    thread_ts=thread_ts,
+                    blocks=[
+                        {"type": "section", "text": {"type": "mrkdwn",
+                            "text": "Glad that helped! Want me to save this to the Knowledge Vault so the next person gets an instant answer?"}},
+                        {"type": "actions", "elements": [
+                            {"type": "button", "text": {"type": "plain_text", "text": "Save it ✓"},
+                             "style": "primary", "action_id": "ambient_save_yes", "value": ctx},
+                            {"type": "button", "text": {"type": "plain_text", "text": "No thanks"},
+                             "action_id": "ambient_save_no", "value": ctx},
+                        ]},
+                    ],
+                    text="Want me to save this to the Knowledge Vault?",
+                )
+                return
+
+            if _POSITIVE_PATTERNS.search(text):
                 task_data = _direction_threads.pop(thread_ts)
                 logger.info(f"Direction confirmed in {thread_ts}, escalating to resolver")
 
