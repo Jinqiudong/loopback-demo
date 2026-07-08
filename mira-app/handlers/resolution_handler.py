@@ -101,6 +101,16 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
                     text=f"[human_working] {task_data['question_text']}",
                 )
 
+                # Notify the team so someone picks it up
+                import os
+                resolver_id = os.environ.get("MIRA_RESOLVER_ID", "")
+                mention = f"<@{resolver_id}>" if resolver_id else "@here"
+                client.chat_postMessage(
+                    channel=task_data["channel"],
+                    thread_ts=thread_ts,
+                    text=f"{mention} can you take a look? I've summarised what I found above.",
+                )
+
                 # Now listen for the resolver's reply
                 register_active_thread(
                     thread_ts=thread_ts,
