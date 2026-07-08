@@ -98,7 +98,7 @@ When you have enough information, stop and write a summary using this exact form
 
 Rules:
 - Maximum 2 points. Direct answer to the question — not general explanations of how the system works.
-- Cite the exact file name in parentheses after each point, e.g. _(raw_applications.sql)_
+- Cite the source as a Slack link after each point, e.g. _(<https://github.com/.../raw_applications.sql|raw_applications.sql>)_ — use the exact github URL from the tool result
 - Use Slack formatting: *bold* with single asterisks, numbered list with 1. 2.
 - No preamble like "Here's what I found" or "Got it!" — start immediately with *Possible cause:*
 - If nothing found: write "I didn't find anything relevant in the codebase." """
@@ -112,7 +112,7 @@ def _execute_tool(tool_name: str, tool_input: dict) -> str:
             if not results:
                 return "No matching files found in the codebase."
             return "\n\n".join(
-                f"**{r['filename']}** ({r['path']}):\n{r['excerpt']}"
+                f"{r['filename']} (github: {r['html_url']}):\n{r['excerpt']}"
                 for r in results
             )
 
