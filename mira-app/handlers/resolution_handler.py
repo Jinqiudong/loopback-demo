@@ -1,22 +1,22 @@
 """
-Unified message handler for two thread states:
+Unified message handler covering four cases:
 
-1. direction_check — requester's "yes" confirms Mira's findings → escalate to resolver
-2. human_working   — resolver's reply → update card to pending_confirm
+1. Proactive detection  — top-level question, no @Mira → Mira investigates automatically
+2. direction_check      — requester's "yes" confirms Mira's findings → escalate to resolver
+3. human_working        — resolver's reply → update card to pending_confirm
+4. Ambient detection    — untracked thread resolves → Mira offers to save the Q&A
 
-Also handles passive ambient detection: threads Mira was never @-mentioned in.
-When a reply arrives in a thread whose parent looks like a question, Mira offers
-to save the Q&A to the Vault without requiring an @-mention.
-
-Single handler avoids Slack Bolt multi-handler conflicts.
+This is the zero-@mention flow: teams work normally, Mira handles everything.
 """
 
 import json
 import re
 
-from services.intent import classify_resolution
+from services.intent import classify_intent, classify_resolution
 from services.task_card import build_task_card
 from services.vault_client import VaultClient
+
+_BOT_MENTION_RE = re.compile(r"<@[A-Z0-9]+>")
 
 _vault = VaultClient()
 
@@ -70,7 +70,15 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
         text = event.get("text", "").strip()
         channel = event.get("channel", "")
 
-        if not thread_ts or not user or user == bot_user_id or event.get("subtype"):
+        if not user or user == bot_user_id or event.get("subtype"):
+            return
+
+        # ── Proactive detection: top-level question, no @Mira ────────────
+        if not thread_ts:
+            # Skip if message already mentions Mira (handle_mention will cover it)
+            if text and len(text) >= 15 and not _BOT_MENTION_RE.search(text):
+                _investigate_proactively(text, channel, event.get("ts", ""),
+                                         user, client, logger)
             return
 
         # ── Direction check: requester confirms Mira's findings ──────────
@@ -235,3 +243,107 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
             )
         except Exception:
             logger.exception("Ambient Q&A nudge failed for thread %s", thread_ts)
+
+
+# ── Proactive investigation (called for top-level questions) ──────────────────
+
+# Tracks messages already being investigated to avoid duplicates on edits
+_proactive_seen: set = set()
+
+
+def _investigate_proactively(text: str, channel: str, message_ts: str,
+                              asker_id: str, client, logger) -> None:
+    """
+    Mira proactively investigates a question posted without @mention.
+    Same full flow as @Mira: Vault search → Claude investigation → direction check.
+    """
+    if message_ts in _proactive_seen:
+        return
+    _proactive_seen.add(message_ts)
+
+    intent = classify_intent(text)
+    if not intent.is_question:
+        _proactive_seen.discard(message_ts)
+        return
+
+    logger.info(f"Proactive investigation triggered for: {text!r}")
+
+    from services.investigator import investigate
+
+    # Post draft card as a reply (creates a thread under the original message)
+    try:
+        resp = client.chat_postMessage(
+            channel=channel,
+            thread_ts=message_ts,
+            blocks=build_task_card(text, status="draft",
+                                   thread_ts=message_ts, asker_id=asker_id),
+            text=f"[draft] {text}",
+        )
+        card_ts = resp["ts"]
+    except Exception:
+        logger.exception("Proactive: failed to post draft card")
+        return
+
+    client.chat_update(
+        channel=channel, ts=card_ts,
+        blocks=build_task_card(text, status="ai_searching",
+                               thread_ts=message_ts, asker_id=asker_id),
+        text=f"[ai_searching] {text}",
+    )
+
+    # Vault search
+    try:
+        task_card_id = _vault.create_task_card(
+            requester_id=asker_id, channel_id=channel,
+            thread_ts=message_ts, question_raw=text, question_intent=intent.raw_label,
+        )
+        vault_result = _vault.search(text)
+    except Exception:
+        logger.exception("Proactive: Vault call failed")
+        client.chat_update(
+            channel=channel, ts=card_ts,
+            blocks=build_task_card(text, status="human_working",
+                                   thread_ts=message_ts, asker_id=asker_id),
+            text=f"[human_working] {text}",
+        )
+        register_active_thread(message_ts, card_ts, channel, text, asker_id, task_card_id)
+        return
+
+    if vault_result["match_found"]:
+        _vault.update_status(task_card_id, "pending_confirm")
+        client.chat_update(
+            channel=channel, ts=card_ts,
+            blocks=build_task_card(text, status="pending_confirm",
+                                   results=[{**vault_result, "task_card_id": task_card_id}],
+                                   thread_ts=message_ts, asker_id=asker_id,
+                                   vault_hit=vault_result.get("confidence", 0) >= 0.70),
+            text=f"[pending_confirm] {text}",
+        )
+        return
+
+    # Tier 2: Claude agentic investigation
+    context_summary = investigate(text)
+
+    if context_summary:
+        client.chat_update(
+            channel=channel, ts=card_ts,
+            blocks=build_task_card(text, status="direction_check",
+                                   thread_ts=message_ts, asker_id=asker_id,
+                                   context_summary=context_summary),
+            text=f"[direction_check] {text}",
+        )
+        client.chat_postMessage(
+            channel=channel, thread_ts=message_ts,
+            text="Based on what I found, does this look like the right direction? Reply *yes* to loop in your team.",
+        )
+        register_direction_thread(message_ts, card_ts, channel, text,
+                                  asker_id, task_card_id, context_summary)
+    else:
+        _vault.update_status(task_card_id, "human_working")
+        client.chat_update(
+            channel=channel, ts=card_ts,
+            blocks=build_task_card(text, status="human_working",
+                                   thread_ts=message_ts, asker_id=asker_id),
+            text=f"[human_working] {text}",
+        )
+        register_active_thread(message_ts, card_ts, channel, text, asker_id, task_card_id)
