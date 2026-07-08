@@ -90,11 +90,18 @@ Strategy:
 3. Try reading key files directly if search doesn't return results: "schema/raw_applications.sql", "schema/da_approval_metrics.sql", "metrics/approval_rate.sql", "data_dictionary.md"
 4. Search Slack history as a last resort
 
-When you have enough information, stop and write a summary of *maximum 3 bullet points*.
-Each bullet: one sentence, specific fact only (file name, field name, or concrete finding).
-No questions, no suggestions, no preamble. If you found nothing useful, say so in one line.
+When you have enough information, stop and write a summary using this exact format:
 
-Slack formatting: use *text* for bold, plain bullet points with -. No markdown headers."""
+*Possible cause:*
+1. [one sentence — what specifically might be wrong, cite the field/table name] _(source: filename)_
+2. [second finding if relevant] _(source: filename)_
+
+Rules:
+- Maximum 2 points. Direct answer to the question — not general explanations of how the system works.
+- Cite the exact file name in parentheses after each point, e.g. _(raw_applications.sql)_
+- Use Slack formatting: *bold* with single asterisks, numbered list with 1. 2.
+- No preamble like "Here's what I found" or "Got it!" — start immediately with *Possible cause:*
+- If nothing found: write "I didn't find anything relevant in the codebase." """
 
 
 def _execute_tool(tool_name: str, tool_input: dict) -> str:
