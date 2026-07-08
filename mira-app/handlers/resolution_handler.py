@@ -87,36 +87,7 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
             if user != task["asker_id"]:
                 return
 
-            # Resolution signal: asker says "thanks / makes sense / got it"
-            # → Mira's investigation itself answered the question, offer to save
-            if classify_resolution(text):
-                task_data = _direction_threads.pop(thread_ts)
-                _seen_ambient_threads.add(thread_ts)
-                ctx = json.dumps({
-                    "question": task_data["question_text"],
-                    "answer": task_data.get("context_summary", ""),
-                    "asker_id": task_data["asker_id"],
-                    "resolver_id": "",
-                    "thread_ts": thread_ts,
-                    "channel": task_data["channel"],
-                })
-                client.chat_postMessage(
-                    channel=task_data["channel"],
-                    thread_ts=thread_ts,
-                    blocks=[
-                        {"type": "section", "text": {"type": "mrkdwn",
-                            "text": "Glad that helped! Want me to save this to the Knowledge Vault so the next person gets an instant answer?"}},
-                        {"type": "actions", "elements": [
-                            {"type": "button", "text": {"type": "plain_text", "text": "Save it ✓"},
-                             "style": "primary", "action_id": "ambient_save_yes", "value": ctx},
-                            {"type": "button", "text": {"type": "plain_text", "text": "No thanks"},
-                             "action_id": "ambient_save_no", "value": ctx},
-                        ]},
-                    ],
-                    text="Want me to save this to the Knowledge Vault?",
-                )
-                return
-
+            # "yes / correct / right" → direction confirmed, loop in resolver (highest priority)
             if _POSITIVE_PATTERNS.search(text):
                 task_data = _direction_threads.pop(thread_ts)
                 logger.info(f"Direction confirmed in {thread_ts}, escalating to resolver")
@@ -147,6 +118,35 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
                     question_text=task_data["question_text"],
                     asker_id=task_data["asker_id"],
                     task_card_id=task_data["task_card_id"],
+                )
+
+            # "thanks / makes sense / got it" → Mira's investigation answered it,
+            # no resolver needed → offer to save
+            elif classify_resolution(text):
+                task_data = _direction_threads.pop(thread_ts)
+                _seen_ambient_threads.add(thread_ts)
+                ctx = json.dumps({
+                    "question": task_data["question_text"],
+                    "answer": task_data.get("context_summary", ""),
+                    "asker_id": task_data["asker_id"],
+                    "resolver_id": "",
+                    "thread_ts": thread_ts,
+                    "channel": task_data["channel"],
+                })
+                client.chat_postMessage(
+                    channel=task_data["channel"],
+                    thread_ts=thread_ts,
+                    blocks=[
+                        {"type": "section", "text": {"type": "mrkdwn",
+                            "text": "Glad that helped! Want me to save this to the Knowledge Vault so the next person gets an instant answer?"}},
+                        {"type": "actions", "elements": [
+                            {"type": "button", "text": {"type": "plain_text", "text": "Save it ✓"},
+                             "style": "primary", "action_id": "ambient_save_yes", "value": ctx},
+                            {"type": "button", "text": {"type": "plain_text", "text": "No thanks"},
+                             "action_id": "ambient_save_no", "value": ctx},
+                        ]},
+                    ],
+                    text="Want me to save this to the Knowledge Vault?",
                 )
             return
 
