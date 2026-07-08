@@ -162,70 +162,114 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
 
     now_str = datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
 
-    verified = [c for c in cards if c["status"] == "verified"]
-    pending  = [c for c in cards if c["status"] == "unconfirmed"]
-    open_q   = [c for c in cards if c["status"] in ("human_working", "escalate")]
+    verified     = [c for c in cards if c["status"] == "verified"]
+    unanswered   = [c for c in cards if c["status"] == "unconfirmed"]
+    open_q       = [c for c in cards if c["status"] in ("human_working", "escalate")]
+    total        = len(cards)
 
-    total = len(cards)
-    summary = (
-        f"**{total} question{'s' if total != 1 else ''}**  ·  "
-        f"{len(verified)} verified  ·  "
-        f"{len(pending)} pending  ·  "
-        f"{len(open_q)} open"
-    )
+    # Auto-served = verified questions whose vault_entry has been used >1 time
+    # (usage_count > 1 means it answered at least one repeat question)
+    auto_served  = sum(1 for c in verified if c.get("confidence_score", 0) > 0)
+    knowledge_ct = len(verified)
 
     lines = [
         f"# Channel Insights — #{channel_name}",
         f"📅 {label}  ·  Updated {now_str}",
         "",
-        summary,
-        "",
         "---",
         "",
     ]
 
-    lines += _section("✅ Knowledge", verified)
-    lines += _section("💡 Answered Pending", pending)
-    lines += _section("❓ Open Questions", open_q)
+    # ── Section 1: Impact ────────────────────────────────────────────────────
+    lines += [
+        "## 📊 Impact",
+        "",
+        f"**{total} question{'s' if total != 1 else ''}** received in this channel",
+        "",
+        f"- ✅  **{len(verified)} answered** — confirmed correct, ready to reuse",
+        f"- 🔔  **{len(unanswered)} unanswered** — has a suggested answer, not yet confirmed (tagged below)",
+        f"- ❓  **{len(open_q)} open** — still needs a human to help",
+        "",
+    ]
 
+    if knowledge_ct > 0:
+        lines += [
+            f"**{knowledge_ct} new knowledge entr{'ies' if knowledge_ct != 1 else 'y'} created** this period.",
+            f"Mira can now auto-serve these questions instantly — no resolver needed next time.",
+            "",
+        ]
+
+    lines += ["---", ""]
+
+    # ── Section 2: Knowledge Vault ───────────────────────────────────────────
+    lines += ["## 🧠 Knowledge Vault", ""]
+
+    if verified:
+        clusters = _cluster_by_topic(verified)
+        for cluster in clusters:
+            topic = _topic_title(cluster)
+            # Best card = highest confidence
+            best = max(cluster, key=lambda c: c.get("confidence_score", 0))
+            conf = int(best.get("confidence_score", 0) * 100)
+            owner = best.get("owner_id", "")
+            owner_str = f" · answered by <@{owner}>" if owner else ""
+            thread = best.get("source_thread", "")
+            thread_str = f" · [View thread]({thread})" if thread else ""
+
+            lines.append(f"**{topic}**")
+            lines.append(f"✅ {conf}% confidence{owner_str}{thread_str}")
+
+            for card in cluster:
+                q = card["question"]
+                t = card.get("source_thread", "")
+                t_str = f" [↗]({t})" if t else ""
+                lines.append(f"  - {q}{t_str}")
+            lines.append("")
+    else:
+        lines += ["_No verified knowledge yet this period._", ""]
+
+    if unanswered:
+        lines += [
+            "### 🔔 Unanswered — needs confirmation",
+            "_These have a suggested answer but no one confirmed it. Tag the resolver to follow up._",
+            "",
+        ]
+        for card in unanswered:
+            q = card["question"]
+            t = card.get("source_thread", "")
+            t_str = f" [View thread]({t})" if t else ""
+            lines.append(f"- {q}{t_str}")
+        lines.append("")
+
+    if open_q:
+        lines += ["### ❓ Open — no answer yet", ""]
+        for card in open_q:
+            q = card["question"]
+            t = card.get("source_thread", "")
+            t_str = f" [View thread]({t})" if t else ""
+            lines.append(f"- {q}{t_str}")
+        lines.append("")
+
+    lines += ["---", ""]
+
+    # ── Section 3: Enhancement Opportunities ─────────────────────────────────
     opportunities = generate_opportunities(cards, label)
     lines += _opportunity_section(opportunities, label)
 
     return "\n".join(lines)
 
 
-def _section(title: str, cards: list[dict]) -> list[str]:
-    if not cards:
-        return [f"## {title}", "", "_None this period._", "", "---", ""]
-
-    clusters = _cluster_by_topic(cards)
-    topic_count = len(clusters)
-    lines = [
-        f"## {title}  ({topic_count} topic{'s' if topic_count != 1 else ''})",
-        "",
-    ]
-
-    for cluster in clusters:
-        topic_name = _topic_title(cluster)
-        q_count = len(cluster)
-        lines.append(f"**{topic_name}**  ·  {q_count} question{'s' if q_count != 1 else ''}")
-        for card in cluster:
-            if card.get("source_thread"):
-                lines.append(f"- {card['question']} — [View thread]({card['source_thread']})")
-            else:
-                lines.append(f"- {card['question']}")
-        lines.append("")
-
-    lines += ["---", ""]
-    return lines
-
-
 def _opportunity_section(opportunities: list[dict], label: str) -> list[str]:
     if not opportunities:
-        return []
+        return [
+            "## 🌱 Enhancement Opportunities",
+            "",
+            "_Not enough data yet to surface patterns. Come back after more questions are resolved._",
+            "",
+        ]
     lines = [
-        f"## 🌱 Enhancement Opportunity",
-        f"*AI-generated · {label}*",
+        "## 🌱 Enhancement Opportunities",
+        f"*AI-generated from resolved questions · {label}*",
         "",
     ]
     for opp in opportunities:
@@ -236,7 +280,6 @@ def _opportunity_section(opportunities: list[dict], label: str) -> list[str]:
         for b in bullets:
             lines.append(f"- {b}")
         lines.append("")
-    lines += ["---", ""]
     return lines
 
 
