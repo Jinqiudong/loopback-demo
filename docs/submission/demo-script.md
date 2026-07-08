@@ -3,21 +3,23 @@
 **Total runtime:** under 3:00
 **Roles:** Jie = BA (requester) · Jinqiu = DE + Product Owner (resolver)
 **Visual device:** A loop diagram builds progressively after each act — closing shot reveals the complete picture.
+**Key design:** No @Mira needed. Mira detects questions automatically and captures resolved conversations passively.
 
 ---
 
 ## High-Level Structure
 
-| Time | Section | What it shows | Diagram state |
-|------|---------|---------------|---------------|
-| 0:00–0:30 | Intro | Problem + product in 30 seconds | Empty loop |
-| 0:30–0:50 | Ambient moment | Mira captures knowledge without @mention | — |
-| 0:50–1:25 | Act 1 — Cold start | AI-human in a loop, GitHub investigation | Cold start path added |
-| 1:25–2:00 | Act 2 — Vault hit | Knowledge Vault payoff, semantic search | Vault shortcut path added |
-| 2:00–2:45 | Act 3 — Channel Insights | Patterns → product fixes | Enhancement loop added |
-| 2:45–3:00 | Closing | Complete loop revealed | Full loop |
+| Time | Section | What it shows | Trigger |
+|------|---------|---------------|---------|
+| 0:00–0:30 | Intro | Problem + product in 30 seconds | — |
+| 0:30–0:50 | Ambient moment | Mira saves a resolved conversation | Asker says "got it" (no @Mira) |
+| 0:50–1:25 | Act 1 — Cold start | Mira investigates → direction check → resolver answers | Jie posts question (no @Mira) |
+| 1:25–2:00 | Act 2 — Vault hit | Instant answer from Knowledge Vault | Jie posts question (no @Mira) |
+| 2:00–2:45 | Act 3 — Channel Insights | Patterns → product fixes | `@Mira insights` / `@Mira analyze` |
+| 2:45–3:00 | Closing | Complete loop revealed | — |
 
-**One story:** A data team's recurring approval rate confusion — discovered, resolved, saved automatically, never asked again, turned into a product fix.
+**One story:** A data team's recurring approval rate confusion — captured automatically, investigated by AI, resolved by a human, saved to Vault, never asked again, turned into a product fix.
+**Note:** Only Act 3 uses @Mira. Everything else is zero-friction.
 
 ---
 
@@ -71,18 +73,18 @@ Jie clicks **Save it ✓** → Mira: *"Saved to the Knowledge Vault ✓"*
 ## Act 1 — Cold start (0:50–1:25)
 
 **Transition from ambient:**
-> *"But what about a problem nobody has solved before — one that needs real investigation, not just saving an existing answer?"*
+> *"But what about a problem nobody has solved before — one that needs real investigation?"*
 
-**What this shows:** When the answer doesn't exist yet, @Mira triggers active investigation — Mira reads the codebase, finds the root cause, confirms direction, then steps back. AI-human in a loop — Mira listens, never relays.
+**What this shows:** Jie posts a question normally — no @Mira. Mira detects it, investigates the codebase autonomously, confirms direction, then steps back. AI-human in a loop — Mira listens, never relays.
 
 **Exact messages:**
 
-Jie types:
+Jie types (no @Mira — just a normal message):
 ```
-@Mira we're seeing an unexpected drop in our approval rate this week — can you help me investigate?
+we're seeing an unexpected drop in our approval rate this week — anyone know what's going on?
 ```
 
-Card: Draft → 🔍 Searching *(Mira reads Vault, searches GitHub codebase and Slack history)*
+Mira appears automatically in thread. Card: Draft → 🔍 Searching *(Mira reads Vault, searches GitHub codebase)*
 
 Card → 🔎 **Direction Check** · Mira posts in thread:
 > *"Based on what I found: `product_type` is nullable in `raw_applications` — applications with NULL product_type are excluded from approval rate calculations. This matches known issue #003 in your analytics repo. Does this look like the right direction?"*
@@ -114,9 +116,9 @@ Jie reacts ✅ → Card → **✅ Verified Answer** · source thread link visibl
 
 **Exact messages:**
 
-New BA (second account or different channel):
+New BA (second account or different channel — no @Mira):
 ```
-@Mira why does our data show fewer approvals this month?
+why does our data show fewer approvals this month?
 ```
 
 Card: Draft → ⚡ **Answered from Knowledge Vault** *(appears in ~3 seconds)*
