@@ -12,7 +12,7 @@ This is the zero-@mention flow: teams work normally, Mira handles everything.
 import json
 import re
 
-from config import MIRA_RESOLVER_ID, VAULT_HIGH_CONFIDENCE_THRESHOLD
+from config import VAULT_HIGH_CONFIDENCE_THRESHOLD
 from services.intent import classify_intent, classify_resolution, classify_direction_response, classify_is_deflection
 from services.reactions import update_status_reaction
 from services.task_card import build_task_card
@@ -123,13 +123,8 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
                     text=f"[human_working] {task_data['question_text']}",
                 )
 
-                # Notify the team so someone picks it up
-                mention = f"<@{MIRA_RESOLVER_ID}>" if MIRA_RESOLVER_ID else "@here"
-                client.chat_postMessage(
-                    channel=task_data["channel"],
-                    thread_ts=thread_ts,
-                    text=f"{mention} can you take a look? I've summarised what I found above.",
-                )
+                # Status reaction on the original message signals the team visually
+                update_status_reaction(client, task_data["channel"], thread_ts, "human_working")
 
                 # Now listen for the resolver's reply
                 register_active_thread(

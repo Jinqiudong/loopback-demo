@@ -206,6 +206,7 @@ Fade to logo.
 **Slack app scopes required:**
 - `channels:history` — ambient detection + Real-Time Search API
 - `canvases:write` — Channel Insights Canvas
+- `reactions:write` — status emoji on original question message (❓ 🔔 ✅)
 - `message.channels` event subscribed
 - `app_home_opened` event subscribed
 
@@ -213,7 +214,6 @@ Fade to logo.
 - `VAULT_STUB=false`, real Supabase connected
 - `GITHUB_TOKEN` set, `loopback-analytics` repo public and accessible
 - `SLACK_USER_TOKEN` set (for Real-Time Search API, `search:read` scope)
-- `MIRA_RESOLVER_ID` set to Jinqiu's Slack user ID (so Mira @mentions you after direction confirmed)
 - App deployed to Railway before recording (no terminal visible)
 
 **Loop diagram:**
