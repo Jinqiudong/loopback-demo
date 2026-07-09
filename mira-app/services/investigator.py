@@ -93,14 +93,16 @@ Strategy — follow this order exactly:
 When you have enough information, stop and write a summary using this exact format:
 
 *Possible cause:*
-1. [one sentence — what specifically might be wrong, cite the field/table name] _(source: filename)_
-2. [second finding if relevant] _(source: filename)_
+1. [one sentence max — specific finding, field or table name] <github_url|filename>
+2. [second finding if relevant] <github_url|filename>
 
 Rules:
-- Maximum 2 points. Direct answer to the question — not general explanations of how the system works.
-- Cite the source as a Slack link after each point, e.g. _(<https://github.com/.../raw_applications.sql|raw_applications.sql>)_ — use the exact github URL from the tool result
-- Use Slack formatting: *bold* with single asterisks, numbered list with 1. 2.
-- No preamble like "Here's what I found" or "Got it!" — start immediately with *Possible cause:*
+- Maximum 2 points, one sentence each. Direct and specific — no background explanations.
+- Link format MUST be: <url|filename> with angle brackets, e.g. <https://github.com/org/repo/blob/main/schema/raw_applications.sql|raw_applications.sql>
+  Do NOT use parentheses, do NOT URL-encode the pipe character. Use angle brackets only.
+- Keep each point under 20 words before the link.
+- Use *bold* with single asterisks. Numbered list with 1. 2.
+- Start immediately with *Possible cause:* — no preamble.
 - If nothing found: write "I didn't find anything relevant in the codebase." """
 
 
