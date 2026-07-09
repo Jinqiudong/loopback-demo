@@ -401,21 +401,36 @@ def _investigate_proactively(text: str, channel: str, message_ts: str,
     if vault_result["match_found"]:
         confidence = vault_result.get("confidence", 0)
         vault_hit = confidence >= VAULT_HIGH_CONFIDENCE_THRESHOLD
-        _vault.update_status(task_card_id, "pending_confirm")
-        update_status_reaction(client, channel, message_ts, "pending_confirm")
-        client.chat_update(
-            channel=channel, ts=card_ts,
-            blocks=build_task_card(text, status="pending_confirm",
-                                   results=[{**vault_result, "task_card_id": task_card_id}],
-                                   thread_ts=message_ts, asker_id=asker_id,
-                                   vault_hit=vault_hit),
-            text=f"[pending_confirm] {text}",
-        )
-        register_pending_thread(
-            thread_ts=message_ts, card_ts=card_ts, channel=channel,
-            question_text=text, asker_id=asker_id, task_card_id=task_card_id,
-            answer=vault_result.get("answer", ""), vault_hit=vault_hit,
-        )
+
+        if vault_hit:
+            # High-confidence verified answer — no further confirmation needed
+            _vault.update_status(task_card_id, "verified")
+            update_status_reaction(client, channel, message_ts, "verified")
+            client.chat_update(
+                channel=channel, ts=card_ts,
+                blocks=build_task_card(text, status="pending_confirm",
+                                       results=[{**vault_result, "task_card_id": task_card_id}],
+                                       thread_ts=message_ts, asker_id=asker_id,
+                                       vault_hit=True),
+                text=f"[verified] {text}",
+            )
+        else:
+            # Lower confidence — ask requester to confirm
+            _vault.update_status(task_card_id, "pending_confirm")
+            update_status_reaction(client, channel, message_ts, "pending_confirm")
+            client.chat_update(
+                channel=channel, ts=card_ts,
+                blocks=build_task_card(text, status="pending_confirm",
+                                       results=[{**vault_result, "task_card_id": task_card_id}],
+                                       thread_ts=message_ts, asker_id=asker_id,
+                                       vault_hit=False),
+                text=f"[pending_confirm] {text}",
+            )
+            register_pending_thread(
+                thread_ts=message_ts, card_ts=card_ts, channel=channel,
+                question_text=text, asker_id=asker_id, task_card_id=task_card_id,
+                answer=vault_result.get("answer", ""), vault_hit=False,
+            )
         return
 
     # Tier 2: Claude agentic investigation
