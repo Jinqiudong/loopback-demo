@@ -12,8 +12,6 @@ and asks the requester to confirm direction before looping in the resolver.
 Special trigger: if the message contains "analyze" → run Enhancement Proposal engine.
 """
 
-import re
-
 from services.intent import classify_intent
 from services.investigator import investigate
 from services.reactions import update_status_reaction
@@ -21,11 +19,11 @@ from services.task_card import build_task_card
 from services.vault_client import VaultClient
 from handlers.resolution_handler import register_active_thread, register_direction_thread, register_pending_thread
 
+import re
+from config import VAULT_HIGH_CONFIDENCE_THRESHOLD
+
 _MENTION_PATTERN = re.compile(r"<@[A-Z0-9]+>")
 _vault = VaultClient()
-
-_VAULT_HIGH_CONFIDENCE = 0.85
-_VAULT_LOW_CONFIDENCE = 0.70
 
 
 def _strip_mention(raw_text: str) -> str:
@@ -54,8 +52,10 @@ def register_mention_handler(app):
         if not question_text:
             return
 
-        # Special trigger: @Mira insights → Channel Insights Canvas period selector
-        if re.search(r"\binsights?\b", question_text, re.IGNORECASE):
+        result = classify_intent(question_text)
+        logger.info(f"Intent: {result.raw_label} — {question_text!r}")
+
+        if result.raw_label == "INSIGHTS":
             from dashboard.channel_canvas import build_period_selector
             say(
                 channel=event["channel"],
@@ -64,8 +64,7 @@ def register_mention_handler(app):
             )
             return
 
-        # Special trigger: @Mira analyze → Enhancement Proposal engine
-        if re.search(r"\banalyze\b", question_text, re.IGNORECASE):
+        if result.raw_label == "ANALYZE":
             from pm.proposal_engine import generate_opportunities
             cards = _vault.get_channel_insights(event["channel"], since="month")
             opportunities = generate_opportunities(cards, "This Month")
@@ -92,9 +91,6 @@ def register_mention_handler(app):
                 say(channel=event["channel"],
                     text="Not enough resolved questions yet to identify patterns.")
             return
-
-        result = classify_intent(question_text)
-        logger.info(f"Intent: {result.raw_label} — {question_text!r}")
 
         if not result.is_question:
             return
@@ -138,7 +134,7 @@ def register_mention_handler(app):
             _vault.update_status(task_card_id, "pending_confirm")
             update_status_reaction(client, channel, thread_ts, "pending_confirm")
 
-            vault_hit = confidence >= _VAULT_HIGH_CONFIDENCE
+            vault_hit = confidence >= VAULT_HIGH_CONFIDENCE_THRESHOLD
             _update_card(client, channel, card_ts, question_text, "pending_confirm",
                          results=result_payload,
                          thread_ts=thread_ts, asker_id=asker_id, vault_hit=vault_hit)

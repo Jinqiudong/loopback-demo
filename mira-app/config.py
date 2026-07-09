@@ -26,3 +26,8 @@ if _missing:
         f"Missing required environment variable(s): {', '.join(_missing)}. "
         f"Copy .env.example to .env and fill in real values."
     )
+
+# Optional config — no hard fail if absent
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+VAULT_HIGH_CONFIDENCE_THRESHOLD = float(os.environ.get("VAULT_HIGH_CONFIDENCE_THRESHOLD", "0.82"))
+MIRA_RESOLVER_ID = os.environ.get("MIRA_RESOLVER_ID", "")

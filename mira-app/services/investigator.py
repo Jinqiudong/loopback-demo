@@ -22,14 +22,13 @@ from typing import Any
 
 import anthropic
 
-from config import ANTHROPIC_API_KEY
-from services.mcp_github import search_codebase, _read_file, _ANALYTICS_REPO
+from config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL
+from services.mcp_github import search_codebase, read_file, _ANALYTICS_REPO
 from services.slack_search import search_slack_history as _search_slack
 
 logger = logging.getLogger(__name__)
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-_MODEL = "claude-sonnet-4-6"
 _MAX_ITERATIONS = 5
 
 _TOOLS = [
@@ -119,10 +118,10 @@ def _execute_tool(tool_name: str, tool_input: dict) -> str:
 
         elif tool_name == "read_file":
             path = tool_input["path"]
-            content = _read_file(path)
+            content = read_file(path)
             if not content:
                 return f"File not found: {path}"
-            github_url = f"https://github.com/{_ANALYTICS_REPO}/blob/main/{path}"
+            github_url = f"https://github.com/{_ANALYTICS_REPO}/blob/main/{path}" if _ANALYTICS_REPO else path
             return f"github: {github_url}\n\n{content[:2500]}"
 
         elif tool_name == "search_slack_history":
@@ -158,7 +157,7 @@ def investigate(question: str) -> str:
     for iteration in range(_MAX_ITERATIONS):
         try:
             response = _client.messages.create(
-                model=_MODEL,
+                model=ANTHROPIC_MODEL,
                 max_tokens=1500,
                 system=_SYSTEM,
                 tools=_TOOLS,

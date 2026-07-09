@@ -75,7 +75,7 @@ def _stub_entries() -> list[dict[str, Any]]:
             "status": "verified",
             "confidence_score": 0.94,
             "usage_count": 5,
-            "owner_id": "U_JIE",
+            "owner_id": "U_STUB_USER_1",
             "last_confirmed_at": "2026-06-20T10:30:00Z",
         },
         {
@@ -85,7 +85,7 @@ def _stub_entries() -> list[dict[str, Any]]:
             "status": "unconfirmed",
             "confidence_score": 0.61,
             "usage_count": 1,
-            "owner_id": "U_JINQIU",
+            "owner_id": "U_STUB_USER_2",
             "last_confirmed_at": None,
         },
         {
@@ -95,7 +95,7 @@ def _stub_entries() -> list[dict[str, Any]]:
             "status": "verified",
             "confidence_score": 0.88,
             "usage_count": 3,
-            "owner_id": "U_JIE",
+            "owner_id": "U_STUB_USER_1",
             "last_confirmed_at": "2026-06-19T14:00:00Z",
         },
     ]
@@ -115,8 +115,6 @@ def _stub_channel_cards(channel_id: str) -> list[dict[str, Any]]:
 
 
 def _stub_search(query: str) -> dict[str, Any]:
-    # Returns no match by default → triggers human_working path.
-    # Swap to the commented block below to test the vault hit path.
     return {
         "match_found": False,
         "entry_id": None,
@@ -125,11 +123,3 @@ def _stub_search(query: str) -> dict[str, Any]:
         "confidence": 0.0,
         "last_confirmed_at": None,
     }
-    # return {
-    #     "match_found": True,
-    #     "entry_id": "stub-001",
-    #     "answer": "Submit your PTO via Workday at least 3 business days in advance.",
-    #     "owner_id": "U_STUB_OWNER",
-    #     "confidence": 0.91,
-    #     "last_confirmed_at": None,
-    # }

@@ -167,9 +167,6 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
     open_q       = [c for c in cards if c["status"] in ("human_working", "escalate")]
     total        = len(cards)
 
-    # Auto-served = verified questions whose vault_entry has been used >1 time
-    # (usage_count > 1 means it answered at least one repeat question)
-    auto_served  = sum(1 for c in verified if c.get("confidence_score", 0) > 0)
     knowledge_ct = len(verified)
 
     lines = [

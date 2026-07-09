@@ -12,38 +12,35 @@ from dataclasses import dataclass
 
 import anthropic
 
-from config import ANTHROPIC_API_KEY
+from config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-_MODEL = "claude-sonnet-4-6"
+_SYSTEM_PROMPT = """You classify a single Slack message directed at an AI assistant named Mira.
 
-_SYSTEM_PROMPT = """You classify a single Slack message that mentioned an AI \
-assistant named Mira. Decide whether it is a QUESTION that needs an answer, \
-or NOISE (a greeting, thanks, small talk, or anything that isn't actually \
-asking for help with a problem).
+Classify as exactly one of:
+INSIGHTS    — user wants to see channel analytics or the Knowledge Vault dashboard
+ANALYZE     — user wants Mira to analyze patterns and generate improvement proposals
+QUESTION    — a genuine question or problem that needs an answer
+NOISE       — greeting, thanks, small talk, or anything that doesn't need a response
 
-Respond with exactly one word: QUESTION or NOISE. Nothing else."""
+Respond with exactly one word: INSIGHTS, ANALYZE, QUESTION, or NOISE. Nothing else."""
 
 
 @dataclass
 class IntentResult:
     is_question: bool
-    raw_label: str
+    raw_label: str  # QUESTION | NOISE | INSIGHTS | ANALYZE
 
 
 def classify_intent(message_text: str) -> IntentResult:
     """
-    Classify a single message as QUESTION or NOISE.
-
-    Deliberately fails closed: if anything goes wrong calling the API,
-    we treat the message as NOISE rather than risk creating a task card
-    for garbage input. Once this is stable we may want to reconsider
-    that default, but for Week 1 it's the safer failure mode.
+    Classify a message into one of four intents.
+    Fails closed to NOISE if the API call fails.
     """
     try:
         response = _client.messages.create(
-            model=_MODEL,
+            model=ANTHROPIC_MODEL,
             max_tokens=10,
             system=_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": message_text}],
@@ -52,7 +49,7 @@ def classify_intent(message_text: str) -> IntentResult:
     except Exception:
         label = "NOISE"
 
-    is_question = label.startswith("QUESTION")
+    is_question = label == "QUESTION"
     return IntentResult(is_question=is_question, raw_label=label)
 
 
@@ -73,7 +70,7 @@ def classify_resolution(message_text: str) -> bool:
     """Return True if the asker's message signals the question was resolved."""
     try:
         response = _client.messages.create(
-            model=_MODEL,
+            model=ANTHROPIC_MODEL,
             max_tokens=10,
             system=_RESOLUTION_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": message_text}],
@@ -102,7 +99,7 @@ def classify_is_deflection(answer_text: str) -> bool:
     """Return True if an answer deflects rather than resolves (e.g. 'create a ticket')."""
     try:
         response = _client.messages.create(
-            model=_MODEL,
+            model=ANTHROPIC_MODEL,
             max_tokens=10,
             system=(
                 "You are reading a Slack message that was given as an answer to a question. "
@@ -126,7 +123,7 @@ def classify_direction_response(message_text: str) -> str:
     """
     try:
         response = _client.messages.create(
-            model=_MODEL,
+            model=ANTHROPIC_MODEL,
             max_tokens=10,
             system=_DIRECTION_RESPONSE_PROMPT,
             messages=[{"role": "user", "content": message_text}],

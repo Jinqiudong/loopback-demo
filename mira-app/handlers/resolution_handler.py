@@ -12,6 +12,7 @@ This is the zero-@mention flow: teams work normally, Mira handles everything.
 import json
 import re
 
+from config import MIRA_RESOLVER_ID, VAULT_HIGH_CONFIDENCE_THRESHOLD
 from services.intent import classify_intent, classify_resolution, classify_direction_response, classify_is_deflection
 from services.reactions import update_status_reaction
 from services.task_card import build_task_card
@@ -19,6 +20,9 @@ from services.vault_client import VaultClient
 
 # Structural pattern only — detects Slack bot mention format <@U...>, not semantic
 _BOT_MENTION_RE = re.compile(r"<@[A-Z0-9]+>")
+
+# Minimum message length for proactive question detection (filters out reactions, single words)
+_MIN_PROACTIVE_LENGTH = 15
 
 _vault = VaultClient()
 
@@ -83,7 +87,7 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
         # ── Proactive detection: top-level question, no @Mira ────────────
         if not thread_ts:
             # Skip if message already mentions Mira (handle_mention will cover it)
-            if text and len(text) >= 15 and not _BOT_MENTION_RE.search(text):
+            if text and len(text) >= _MIN_PROACTIVE_LENGTH and not _BOT_MENTION_RE.search(text):
                 _investigate_proactively(text, channel, event.get("ts", ""),
                                          user, client, logger)
             return
@@ -120,9 +124,7 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
                 )
 
                 # Notify the team so someone picks it up
-                import os
-                resolver_id = os.environ.get("MIRA_RESOLVER_ID", "")
-                mention = f"<@{resolver_id}>" if resolver_id else "@here"
+                mention = f"<@{MIRA_RESOLVER_ID}>" if MIRA_RESOLVER_ID else "@here"
                 client.chat_postMessage(
                     channel=task_data["channel"],
                     thread_ts=thread_ts,
@@ -188,7 +190,7 @@ def register_resolution_handler(app, bot_user_id: str) -> None:
                         ),
                         text=f"[verified] {task['question_text']}",
                     )
-                elif direction == "ESCALATE" or "no" in text.lower() or "doesn't" in text.lower() or "not" in text.lower():
+                elif direction == "ESCALATE":
                     _pending_threads.pop(thread_ts)
                     _vault.update_status(task["task_card_id"], "escalate")
                     client.chat_update(
@@ -403,7 +405,7 @@ def _investigate_proactively(text: str, channel: str, message_ts: str,
 
     if vault_result["match_found"]:
         confidence = vault_result.get("confidence", 0)
-        vault_hit = confidence >= 0.82
+        vault_hit = confidence >= VAULT_HIGH_CONFIDENCE_THRESHOLD
         _vault.update_status(task_card_id, "pending_confirm")
         update_status_reaction(client, channel, message_ts, "pending_confirm")
         client.chat_update(
