@@ -36,6 +36,9 @@ def build_task_card(
     context_summary: Optional[str] = None,
 ) -> list[dict]:
     emoji, header_text = _STATUS_HEADERS.get(status, ("•", status))
+    # Vault hits get a distinct header so the source is immediately clear
+    if status == "pending_confirm" and vault_hit:
+        emoji, header_text = "⚡", "Answered from Knowledge Vault"
     time_ago = _relative_time(thread_ts)
 
     blocks: list[dict] = [
@@ -111,6 +114,7 @@ def _vault_hit_blocks(result: dict[str, Any],
     answer = _truncate(result.get("answer", ""))
     confidence = result.get("confidence", 0)
     usage = result.get("usage_count", 0)
+    owner_id = result.get("owner_id", "")
     source_thread = result.get("source_thread")
 
     blocks = [
@@ -120,9 +124,11 @@ def _vault_hit_blocks(result: dict[str, Any],
         },
     ]
 
-    meta_parts = [f"{int(confidence * 100)}% confidence"]
+    meta_parts = [f"*{int(confidence * 100)}% confidence*"]
+    if owner_id:
+        meta_parts.append(f"answered by <@{owner_id}>")
     if usage > 0:
-        meta_parts.append(f"verified by {usage} teammate{'s' if usage > 1 else ''}")
+        meta_parts.append(f"helped {usage} teammate{'s' if usage > 1 else ''}")
     if source_thread:
         meta_parts.append(f"<{source_thread}|View original thread>")
 

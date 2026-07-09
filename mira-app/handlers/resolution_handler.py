@@ -422,6 +422,7 @@ def _investigate_proactively(text: str, channel: str, message_ts: str,
     context_summary = investigate(text)
 
     if context_summary:
+        logger.info(f"[proactive] direction_check — NO reaction added, waiting for requester reply ({message_ts})")
         client.chat_update(
             channel=channel, ts=card_ts,
             blocks=build_task_card(text, status="direction_check",
@@ -432,6 +433,7 @@ def _investigate_proactively(text: str, channel: str, message_ts: str,
         register_direction_thread(message_ts, card_ts, channel, text,
                                   asker_id, task_card_id, context_summary)
     else:
+        logger.info(f"[proactive] investigate() returned empty → human_working + reaction ({message_ts})")
         _vault.update_status(task_card_id, "human_working")
         update_status_reaction(client, channel, message_ts, "human_working")
         client.chat_update(
