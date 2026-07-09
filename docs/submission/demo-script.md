@@ -56,9 +56,9 @@ Card → 🔎 **Direction Check** — Mira posts findings in thread.
 > *1. `product_type` is nullable in `raw_applications` — NULL records may be excluded from approval rate calculations _(raw_applications.sql)_*
 > *2. The approval rate formula in `da_approval_metrics` excludes pending/withdrawn applications _(da_approval_metrics.sql)_"*
 
-Jie replies *(the card already says "Reply yes to loop in a resolver" — Jie just confirms)*:
+Jie replies *(confirms direction + explicitly requests a human to confirm and fix)*:
 ```
-yes that looks right!
+yes that makes sense! can someone from the data team confirm and fix this?
 ```
 
 Card → 🆕 **First time this has been asked** *(Mira loops in the resolver automatically · ❓ emoji appears on Jie's original message)*
