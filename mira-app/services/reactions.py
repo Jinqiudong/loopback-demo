@@ -38,7 +38,7 @@ def update_status_reaction(client, channel: str, thread_ts: str, status: str) ->
 
     if emoji:
         try:
-            logger.info("Adding reaction :%s: to channel=%s ts=%s", emoji, channel, thread_ts)
             client.reactions_add(channel=channel, name=emoji, timestamp=thread_ts)
-        except Exception:
-            logger.warning("Could not add reaction :%s: to %s", emoji, thread_ts, exc_info=True)
+        except Exception as e:
+            if "already_reacted" not in str(e):
+                logger.warning("Could not add reaction :%s: to %s", emoji, thread_ts, exc_info=True)
