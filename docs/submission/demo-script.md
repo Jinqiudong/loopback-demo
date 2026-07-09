@@ -44,17 +44,19 @@ Show: LoopBack logo · tagline · cut to Slack
 
 Jie posts (no @Mira, just a regular channel message):
 ```
-Hey team, why is the approval data showing lower numbers this morning?
+hey does anyone know why the approval numbers look off today? seems lower than yesterday
 ```
 
 Jinqiu replies in thread:
 ```
-NULL values in the product_type field are being excluded from the approval rate calculation. Use WHERE product_type IS NOT NULL when you query da_approval_metrics to get accurate numbers for now.
+yeah I checked — it's a data issue. the product_type field has NULLs for some records
+so they're getting excluded from the rate calc. quick fix: add WHERE product_type IS NOT NULL
+to your query on da_approval_metrics. working on a proper fix
 ```
 
 Jie replies:
 ```
-got it, thanks!
+ah got it, makes sense! thanks for the quick reply 🙏
 ```
 
 Mira appears automatically in the thread:
@@ -81,7 +83,8 @@ Jie clicks **Save it ✓** → Mira: *"Saved to the Knowledge Vault ✓"*
 
 Jie types (no @Mira — just a normal message):
 ```
-we're seeing an unexpected drop in our approval rate this week — anyone know what's going on?
+hi team 👋 our approval rate has been looking weird this week, it's dropped quite a bit
+has anyone seen this before or know what might be causing it?
 ```
 
 Mira appears automatically in thread.
@@ -95,14 +98,16 @@ Card → 🔎 **Direction Check** — Mira posts findings in thread.
 
 Jie replies:
 ```
-yes
+yes that looks right!
 ```
 
 Card → 🆕 **First time this has been asked** *(findings visible in card, Jinqiu @mentioned)*
 
 Jinqiu replies directly to Jie in thread *(Mira stays silent — she's listening, not relaying)*:
 ```
-Confirmed — product_type was missing from ~18% of records after the March 12 schema migration. The NOT NULL constraint has been added and the backfill is complete. Your numbers should normalize in the next 24-hour refresh cycle.
+confirmed — product_type was missing from a batch of records after the March migration.
+we've added the NOT NULL constraint and the backfill is done.
+numbers should be back to normal in the next refresh cycle (tonight) 👍
 ```
 
 Jie reacts ✅ → Card → **✅ Verified Answer** · source thread link visible
@@ -122,7 +127,8 @@ Jie reacts ✅ → Card → **✅ Verified Answer** · source thread link visibl
 
 New BA (second account or different channel — no @Mira):
 ```
-why does our data show fewer approvals this month?
+hey quick question — why are our approved application numbers so low this month?
+feels like something's off with the data
 ```
 
 Card: Draft → ⚡ **Answered from Knowledge Vault** *(appears in ~3 seconds)*
