@@ -12,14 +12,13 @@
 | Time | Section | What it shows | Trigger |
 |------|---------|---------------|---------|
 | 0:00–0:30 | Intro | Problem + product in 30 seconds | — |
-| 0:30–0:50 | Ambient moment | Mira saves a resolved conversation | Asker says "got it" (no @Mira) |
-| 0:50–1:25 | Act 1 — Cold start | Mira investigates codebase → direction check → resolver answers | Jie posts question (no @Mira) |
-| 1:25–2:00 | Act 2 — Vault hit | Instant answer from Knowledge Vault | Jie posts question (no @Mira) |
-| 2:00–2:45 | Act 3 — Channel Insights | Patterns → product fixes | `@Mira insights` then `@Mira analyze` |
-| 2:45–3:00 | Closing | Complete loop revealed | — |
+| 0:30–1:15 | Act 1 — Cold start | Mira investigates → direction check → resolver answers → saved to Vault | Jie posts question (no @Mira) |
+| 1:15–1:50 | Act 2 — Vault hit | Instant answer from Knowledge Vault | Jie posts question (no @Mira) |
+| 1:50–2:40 | Act 3 — Channel Insights | Patterns → product fixes | `@Mira insights` then `@Mira analyze` |
+| 2:40–3:00 | Closing | Complete loop revealed | — |
 
-**One story:** A data team's recurring approval rate confusion — captured automatically, investigated by AI, resolved by a human, saved to Vault, never asked again, turned into a product fix.
-**Note:** Only Act 3 uses @Mira. Everything else is zero-friction.
+**One story:** A data team's recurring approval rate confusion — investigated by AI, resolved by a human, saved to Vault, never asked again, turned into a product fix.
+**Note:** Only Act 3 uses @Mira. Acts 1 and 2 are triggered by normal messages — zero friction.
 
 ---
 
@@ -36,48 +35,9 @@ Show: LoopBack logo · tagline · cut to Slack
 
 ---
 
-## Ambient moment (0:30–0:50)
+## Act 1 — Cold start (0:30–1:15)
 
-**What this shows:** Mira captures knowledge from a normal conversation — no @mention needed.
-
-**Exact messages:**
-
-Jie posts (no @Mira, just a regular channel message):
-```
-hey does anyone know why the approval numbers look off today? seems lower than yesterday
-```
-
-Jinqiu replies in thread:
-```
-yeah I checked — it's a data issue. the product_type field has NULLs for some records
-so they're getting excluded from the rate calc. quick fix: add WHERE product_type IS NOT NULL
-to your query on da_approval_metrics. working on a proper fix
-```
-
-Jie replies:
-```
-ah got it, makes sense! thanks for the quick reply 🙏
-```
-
-Mira appears automatically in the thread:
-> *"Looks like this was resolved! Want me to save it to the Knowledge Vault?"*
-> **[Save it ✓]** [No thanks]
-
-Jie clicks **Save it ✓** → Mira: *"Saved to the Knowledge Vault ✓"*
-
-**Narration:**
-> "LoopBack doesn't require your team to change their workflow.
-> Mira watches in the background — when a question gets resolved, she asks if it's worth saving.
-> No @mention. No extra steps."
-
----
-
-## Act 1 — Cold start (0:50–1:25)
-
-**Transition from ambient:**
-> *"But what about a problem nobody has solved before — one that needs real investigation?"*
-
-**What this shows:** Jie posts a question normally — no @Mira. Mira detects it, investigates the actual SQL schema and codebase autonomously using Claude tool use, confirms direction, then steps back. AI-human in a loop — Mira listens, never relays.
+**What this shows:** Jie posts a question normally — no @Mira. Mira detects it, investigates the actual SQL schema and codebase autonomously using Claude tool use, confirms direction with Jie, loops in Jinqiu, then steps back completely. AI-human in a loop — Mira listens, never relays.
 
 **Exact messages:**
 
@@ -119,7 +79,7 @@ Jie reacts ✅ → Card → **✅ Verified Answer** · source thread link visibl
 
 ---
 
-## Act 2 — Vault hit (1:25–2:00)
+## Act 2 — Vault hit (1:15–1:50)
 
 **What this shows:** Same root cause, different person, different words, instant answer. Semantic understanding — not keyword matching. Resolver never disturbed.
 
@@ -148,7 +108,7 @@ New BA clicks **This helped ✓** → Card → ✅ Verified · confidence ticks 
 
 ---
 
-## Act 3 — Channel Insights (2:00–2:45)
+## Act 3 — Channel Insights (1:50–2:40)
 
 **What this shows:** Accumulated questions surface as a pattern. Mira generates an AI-written Enhancement Opportunity. Support becomes product backlog.
 
@@ -186,7 +146,7 @@ Jinqiu clicks **Approve** → Mira: *"Added to the product backlog."*
 
 ---
 
-## Closing (2:45–3:00)
+## Closing (2:40–3:00)
 
 Reveal the complete loop diagram — all paths lit up.
 
@@ -203,11 +163,10 @@ Fade to logo.
 **Scope:** Run ambient + Act 1 first to seed data. Act 2 only works after Act 1 creates a verified Vault entry. Act 3 needs 3-5 task cards in the channel for Claude to find a pattern.
 
 **Recommended test order:**
-1. Run ambient moment (casual conversation, Jie says "got it", save it)
-2. Run Act 1 twice with different approval-rate questions to build task cards
-3. Test Act 2 — confirm vault hit appears with ~3 seconds and confidence >0.82
-4. Test Act 3 — `@Mira insights` → This Month → check Canvas content → `@Mira analyze`
-5. Full dry run timing all acts — aim for under 3:00 total
+1. Run Act 1 twice with different approval-rate questions to seed task cards and vault entries
+2. Test Act 2 — confirm vault hit appears in ~3 seconds with confidence >0.82
+3. Test Act 3 — `@Mira insights` → This Month → check Canvas → `@Mira analyze`
+4. Full dry run timing all acts — aim for under 3:00 total
 
 **Slack app scopes required:**
 - `channels:history` — ambient detection + Real-Time Search API
