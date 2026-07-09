@@ -43,7 +43,7 @@ Show: LoopBack logo · tagline · cut to Slack
 
 Jie types (no @Mira — just a normal message):
 ```
-hi team 👋 our approval rate has been looking weird this week, it's dropped quite a bit
+Hi team, our approval rate has been looking weird this week, it's dropped quite a bit
 has anyone seen this before or know what might be causing it?
 ```
 
@@ -61,7 +61,7 @@ Jie replies:
 yes that looks right!
 ```
 
-Card → 🆕 **First time this has been asked** *(findings visible in card, Jinqiu @mentioned)*
+Card → 🆕 **First time this has been asked** *(findings visible in card · ❓ emoji appears on Jie's original message — signals the team)*
 
 Jinqiu replies directly to Jie in thread *(Mira stays silent — she's listening, not relaying)*:
 ```
