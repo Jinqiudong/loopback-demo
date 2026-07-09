@@ -64,33 +64,7 @@ def register_mention_handler(app):
             )
             return
 
-        if result.raw_label == "ANALYZE":
-            from pm.proposal_engine import generate_opportunities
-            cards = _vault.get_channel_insights(event["channel"], since="month")
-            opportunities = generate_opportunities(cards, "This Month")
-            if opportunities:
-                opp = opportunities[0]
-                bullets = "\n".join(f"• {b}" for b in opp.get("bullets", []))
-                say(
-                    channel=event["channel"],
-                    blocks=[
-                        {"type": "header", "text": {"type": "plain_text", "text": "Enhancement Opportunity"}},
-                        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"AI-generated from {opp.get('related_count', 0)} related questions"}]},
-                        {"type": "divider"},
-                        {"type": "section", "text": {"type": "mrkdwn", "text": f"*{opp.get('title', '')}*\n{bullets}"}},
-                        {"type": "divider"},
-                        {"type": "actions", "elements": [
-                            {"type": "button", "text": {"type": "plain_text", "text": "Approve"}, "style": "primary", "action_id": "proposal_approve"},
-                            {"type": "button", "text": {"type": "plain_text", "text": "Defer"}, "action_id": "proposal_defer"},
-                            {"type": "button", "text": {"type": "plain_text", "text": "Reject"}, "style": "danger", "action_id": "proposal_reject"},
-                        ]},
-                    ],
-                    text="Enhancement Opportunity from Mira",
-                )
-            else:
-                say(channel=event["channel"],
-                    text="Not enough resolved questions yet to identify patterns.")
-            return
+
 
         if not result.is_question:
             return

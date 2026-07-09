@@ -128,6 +128,29 @@ def register_action_handlers(app):
         else:
             logger.warning("Canvas update failed for channel %s", channel_id)
 
+        # Auto-generate Enhancement Proposal from the same task cards
+        from pm.proposal_engine import generate_opportunities
+        opportunities = generate_opportunities(cards, label)
+        if opportunities:
+            opp = opportunities[0]
+            bullets = "\n".join(f"• {b}" for b in opp.get("bullets", []))
+            client.chat_postMessage(
+                channel=body["channel"]["id"],
+                blocks=[
+                    {"type": "header", "text": {"type": "plain_text", "text": "Enhancement Opportunity"}},
+                    {"type": "context", "elements": [{"type": "mrkdwn", "text": f"AI-generated from {opp.get('related_count', 0)} related questions"}]},
+                    {"type": "divider"},
+                    {"type": "section", "text": {"type": "mrkdwn", "text": f"*{opp.get('title', '')}*\n{bullets}"}},
+                    {"type": "divider"},
+                    {"type": "actions", "elements": [
+                        {"type": "button", "text": {"type": "plain_text", "text": "Approve"}, "style": "primary", "action_id": "proposal_approve"},
+                        {"type": "button", "text": {"type": "plain_text", "text": "Defer"}, "action_id": "proposal_defer"},
+                        {"type": "button", "text": {"type": "plain_text", "text": "Reject"}, "style": "danger", "action_id": "proposal_reject"},
+                    ]},
+                ],
+                text="Enhancement Opportunity from Mira",
+            )
+
     @app.action("insights_this_month")
     def handle_insights_month(ack, body, client, logger):
         _handle_insights("month", ack, body, client, logger)

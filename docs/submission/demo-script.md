@@ -14,7 +14,7 @@
 | 0:00–0:30 | Intro | Problem + product in 30 seconds | — |
 | 0:30–1:15 | Act 1 — Cold start | Mira investigates → direction check → resolver answers → saved to Vault | Jie posts question (no @Mira) |
 | 1:15–1:50 | Act 2 — Vault hit | Instant answer from Knowledge Vault | Jie posts question (no @Mira) |
-| 1:50–2:40 | Act 3 — Channel Insights | Patterns → product fixes | `@Mira insights` then `@Mira analyze` |
+| 1:50–2:40 | Act 3 — Channel Insights | Patterns → product fixes | `@Mira insights` |
 | 2:40–3:00 | Closing | Complete loop revealed | — |
 
 **One story:** A data team's recurring approval rate confusion — investigated by AI, resolved by a human, saved to Vault, never asked again, turned into a product fix.
@@ -110,7 +110,7 @@ New BA clicks **This helped ✓** → Card → ✅ Verified · confidence ticks 
 
 ## Act 3 — Channel Insights (1:50–2:40)
 
-**What this shows:** Accumulated questions surface as a pattern. Mira generates an AI-written Enhancement Opportunity. Support becomes product backlog.
+**What this shows:** Accumulated questions surface as a pattern. Mira generates an AI-written Enhancement Opportunity automatically. Support becomes product backlog — one command.
 
 **Exact messages:**
 
@@ -127,13 +127,7 @@ Canvas updates — three sections:
 - 🔔 **Unanswered** — has a suggested answer, not yet confirmed (highlighted for follow-up)
 - ❓ **Open** — still needs a human to help
 
-Then Jinqiu types:
-```
-@Mira analyze
-```
-*(Classified by Claude as ANALYZE intent)*
-
-Enhancement Opportunity card appears (Claude-generated from actual task cards — not a template):
+Mira automatically posts an Enhancement Opportunity card in the same thread (Claude-generated from the same task cards — not a template):
 > *"[Claude's AI-generated insight about the approval rate pattern and suggested fix]"*
 > **[Approve]** [Defer] [Reject]
 
