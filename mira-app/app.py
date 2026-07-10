@@ -6,6 +6,9 @@ needing a public URL / ngrok tunnel for Slack's Events API to hit.
 Switch to HTTP mode + a real endpoint once this deploys to Railway.
 """
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
