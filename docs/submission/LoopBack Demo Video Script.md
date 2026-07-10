@@ -33,17 +33,12 @@ Hold for two seconds, then cut to a live Slack channel.
 > "Every day, someone asks a question
 > their team may have already answered.
 >
-> The person asking just wants to keep moving.
+> The answer may exist somewhere in Slack,
+> but the context, the owner, and the proof that it worked
+> disappear when the thread goes quiet.
 >
-> And the person who knows the answer
-> has probably had to explain it before.
->
-> When the conversation ends,
-> all of that effort usually disappears with it—
->
-> who understood the problem,
-> what finally worked,
-> and whether the answer could be trusted."
+> LoopBack turns resolved conversations
+> into verified organizational memory."
 
 **[SCREEN]** In the Slack message box, type and send:
 
@@ -55,61 +50,39 @@ Hold for two seconds, then cut to a live Slack channel.
 
 Hold for one quiet second.
 
-**[SCREEN]** Jie moves the cursor into the message box and begins typing.
-
-**[SAY]**
-> "LoopBack helps a team remember
-> what it has already learned—
->
-> directly from the conversations
-> where the work actually happened."
-
 ---
 
 # ACT 1 — LEARNING THE TEAM — 0:28–1:30
 
 ## A normal question
 
-**[SCREEN]** Jie finishes typing:
+**[SCREEN]** Jie moves the cursor into the message box and begins typing.
 
 ```
 Hi team, our approval rate has dropped quite a bit this week.
 Has anyone seen this before or know what might be causing it?
 ```
 
-**[SAY]**
-> "It begins like any other question."
-
 **[SCREEN]** Jie sends the message.
 
-Mira automatically creates a Task Card in the thread.
+Mira automatically look into the question,
 
-The card begins in the draft state and quietly transitions into ai_searching.
-
-Show:
-
-```
-Searching what the team already knows…
-```
-
-The card indicates that Mira is checking:
+Mira is checking:
 
 - Knowledge Vault
-- Slack history
-- Codebase
+- Slack history (via Real-Time Search API)
+- Codebase (GitHub — Claude tool use)
 - Data dictionary
-
-**[SAY]**
-> "Jie doesn't know whether anyone has seen this before.
->
-> She only knows that something looks wrong
-> and she needs help understanding why."
-
----
 
 ## Mira begins learning
 
-**[SCREEN]** Mira continues searching. The Task Card updates in place.
+**[SCREEN]** The Task Card updates in place. Briefly show Claude's tool calls in progress — Claude autonomously deciding what to look at:
+
+```
+→ read_file("schema/raw_applications.sql")
+→ read_file("schema/da_approval_metrics.sql")
+→ search_slack_history("approval rate drop")
+```
 
 **[SAY]**
 > "Mira is new here, too.
@@ -119,10 +92,11 @@ The card indicates that Mira is checking:
 >
 > She begins by paying attention—
 >
-> looking through the places where the team works
-> and gathering the context around the question."
+> reading the actual schema files,
+> searching your Slack history in real time,
+> and deciding on her own what to look at next."
 
-**[SCREEN]** Show a Direction Check with two concise findings:
+**[SCREEN]** Card transitions to Direction Check with two concise findings:
 
 ```
 I found two things that may be related:
@@ -131,11 +105,11 @@ I found two things that may be related:
 • the approval metric excludes records without that field
 ```
 
-Show citations to:
+Show citations linking directly to the files Claude read:
 
 ```
-raw_applications.sql
-da_approval_metrics.sql
+raw_applications.sql  ↗
+da_approval_metrics.sql  ↗
 ```
 
 Then show:
@@ -145,11 +119,13 @@ Does this look like the right direction?
 ```
 
 **[SAY]**
-> "But finding something relevant
+> "These aren't keyword matches.
+> She read the actual files — and decided what mattered.
+>
+> But finding something relevant
 > isn't the same as understanding what someone needs.
 >
-> So before bringing in another person,
-> Mira checks with Jie first."
+> So Mira checks with Jie first."
 
 ---
 
@@ -208,10 +184,7 @@ Pause for one second after the reply appears.
 **[SAY]**
 > "The answer still comes from Jinqiu.
 >
-> Mira never becomes the messenger
-> between two people.
->
-> She helps them reach the conversation faster—
+> Mira helps them reach the conversation faster—
 > and then she steps out of the way."
 
 ---
@@ -227,8 +200,8 @@ Did this resolve your question?
 ```
 
 **[SAY]**
-> "Because an answer isn't knowledge
-> just because someone said it."
+> "Mira and teams just worked on a request together,
+> now it is the time to turn our conversation into organzation memory."
 
 **[SCREEN]** Jie clicks `Yes, resolved`.
 
@@ -243,13 +216,17 @@ Confidence: 96%
 View original thread
 ```
 
+**[SCREEN]** Knowledge Valut text with slack massive message background.
+
 **[SAY]**
-> "It becomes knowledge when the person who needed it
-> confirms that it worked.
->
-> The answer keeps its owner,
-> its source,
-> and the reason the team can trust it."
+> "Knowledge used to be in our memory, 
+> when the similar question getting asked,
+> team still need to understand the request, search all the message, 
+> relized that is a same question we had before. 
+> But now, Mira turn these verified memories into knowledge.
+> The answer is not just an answer,
+> its source, how it got recolved, all the relenvent information,
+> a Knowledge is something people can trust."
 
 Pause briefly.
 
@@ -282,7 +259,7 @@ it feels like something might be wrong with the data
 **[SAY]**
 > "Three days later, someone else sees the same problem.
 >
-> They use different words.
+> They use different words. Mira doesn't do keyword search, it undersatnd the senetic.
 >
 > They don't know Jie asked it.
 >
@@ -484,133 +461,3 @@ Your team should never solve the same problem twice.
 Fade to black.
 
 ---
-
-# Delivery notes
-
-## Let the screen show the features
-
-Do not narrate every system state. The viewer can see Mira searching, the card changing, and the confidence score appearing. The narration should explain what Mira is learning and why those moments matter to the people involved.
-
-## Present the cold start as a beginning
-
-Do not describe the empty Vault as a limitation or technical state. The first question is Mira's first day with the team. She does not begin as an all-knowing system. She learns by:
-
-- paying attention to real questions
-- searching the places where the team works
-- checking her understanding
-- observing how the issue is resolved
-- remembering what the requester confirms
-
-The emotional payoff arrives in Act 2:
-
-> "This time, Mira remembers."
-
-## Keep the opening quiet
-
-Do not rush the first 20 seconds. The logo, blurred Slack background, and `/invite @Mira` should feel like the arrival of a new teammate, not the launch of a software tool. Avoid dramatic music or an exaggerated voice-over.
-
-## Protect the Vault pause
-
-After the Act 2 answer appears, remain silent for four to five seconds. This is the central product moment. The viewer should have time to see:
-
-- the original answer
-- the answer owner
-- who verified it
-- the confidence score
-- the link to the original thread
-
-Speed and provenance are the demonstration.
-
-## Emphasize direct communication
-
-Keep both Jie and Jinqiu visible in the thread when saying:
-
-> "Mira never becomes the messenger between two people."
-
-This is one of LoopBack's strongest differentiators. Mira can search, clarify, organize, learn, and remember — but a real answer still comes directly from the person who owns it.
-
-## Avoid surveillance language
-
-Mira should feel attentive, not intrusive.
-
-Prefer:
-- "Mira begins by paying attention."
-- "She learns from the way the team works."
-- "She remembers what the team confirms."
-
-Avoid:
-- "Mira listens to everything."
-- "Mira monitors every conversation."
-- "Mira watches the team."
-
-## Do not over-explain the architecture
-
-Technical details such as Claude, MCP, Slack Real-Time Search, SQL parsing, and the seven-state machine can remain visible in the interface or appear in the Devpost submission. The demo narration should stay focused on:
-
-- helping the requester keep moving
-- helping a new AI teammate understand the product
-- reducing repeated effort for the resolver
-- preserving trust and provenance
-- learning from each resolved conversation
-- turning repeated problems into product learning
-
-## Keep the Task Card changes subtle
-
-The same Task Card should mutate in place through the visible stages:
-
-```
-draft
-→ ai_searching
-→ human_working
-→ pending_confirm
-→ verified
-```
-
-Do not stop the story to explain the full state machine. The additional paths — unconfirmed and escalate — do not need to be demonstrated in this video.
-
-## Read naturally
-
-Do not emphasize product terms such as Knowledge Vault, confidence score, intent matching, enhancement proposal, or task state. Read as though you are describing how a new teammate gradually becomes useful — not pitching a technical architecture.
-
-## Three important quiet moments
-
-Leave silence in these places:
-
-- One second after Mira joins the channel
-- One second after Jinqiu's answer appears
-- Four to five seconds after the Vault answer appears
-
-The silence gives the product room to feel real.
-
-## Final emotional arc
-
-The video should move through these ideas:
-
-```
-A new teammate joins
-        ↓
-Someone needs help
-        ↓
-Mira learns the product through real work
-        ↓
-A person provides the answer
-        ↓
-The requester confirms that it worked
-        ↓
-Mira remembers for the next person
-        ↓
-Repeated questions reveal what the product should fix
-```
-
-The audience should leave remembering:
-
-> "Mira is new here, too."
-
-> "Mira helps people reach the conversation faster —
-> and then she steps out of the way."
-
-> "This time, Mira was learning.
-> Next time, she'll remember."
-
-> "One question can be an interruption.
-> Five questions can be a signal."
