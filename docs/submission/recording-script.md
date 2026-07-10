@@ -23,13 +23,10 @@
 **[SCREEN]** LoopBack logo + tagline over a blurred Slack background, then cut to a live Slack channel
 
 **[SAY]**
-> "Knowledge workers spend nearly 20% of their workweek —
-> almost a full day —
-> just looking for information they or a colleague already has.
->
-> It's not that teams don't have answers.
-> It's that every answer lives in a thread that goes quiet.
-> The next person who needs it starts from scratch.
+> "Teams spend nearly a full day every week
+> chasing information a colleague already has.
+> Not because the answers don't exist —
+> because they live in threads that went quiet.
 >
 > LoopBack fixes that.
 > Every resolved conversation becomes organizational memory.
