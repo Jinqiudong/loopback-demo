@@ -200,12 +200,13 @@ Did this resolve your question?
 ```
 
 **[SAY]**
-> "Mira and teams just worked on a request together,
-> now it is the time to turn our conversation into organzation memory."
+> "Because an answer isn't knowledge just because someone said it."
 
 **[SCREEN]** Jie clicks `Yes, resolved`.
 
-The card changes to verified. The ❓ reaction becomes ✅. Show:
+The card changes to verified. The ❓ reaction becomes ✅.
+
+**[SCREEN — hold 3 seconds, let the viewer read every line]**
 
 ```
 Verified Answer
@@ -216,27 +217,13 @@ Confidence: 96%
 View original thread
 ```
 
-**[SCREEN]** Knowledge Valut text with slack massive message background.
-
 **[SAY]**
-> "Knowledge used to be in our memory, 
-> when the similar question getting asked,
-> team still need to understand the request, search all the message, 
-> relized that is a same question we had before. 
-> But now, Mira turn these verified memories into knowledge.
-> The answer is not just an answer,
-> its source, how it got recolved, all the relenvent information,
-> a Knowledge is something people can trust."
-
-Pause briefly.
-
-**[SAY]**
-> "And each time the team works through a problem,
-> Mira learns a little more—
+> "It becomes knowledge when the person who needed it
+> confirms that it worked.
 >
-> about the product,
-> about the way the team works,
-> and about what will help the next person."
+> The answer keeps its owner,
+> its source,
+> and the reason the team can trust it."
 
 Pause.
 
@@ -259,10 +246,8 @@ it feels like something might be wrong with the data
 **[SAY]**
 > "Three days later, someone else sees the same problem.
 >
-> They use different words. Mira doesn't do keyword search, it undersatnd the senetic.
->
+> They use different words.
 > They don't know Jie asked it.
->
 > And they don't know Jinqiu already solved it."
 
 **[SCREEN]** Send the message. Within two or three seconds, Mira displays:
@@ -325,16 +310,17 @@ Open the Slack Canvas.
 
 ## What the team has learned
 
-**[SCREEN]** Show the first sections of the Canvas:
+**[SCREEN]** Show the Canvas Impact section — let it breathe for 3 seconds:
 
 ```
-Impact
-Knowledge Vault
-Verified Answers
-Open Questions
-```
+📊 Impact — This Month
 
-Hold long enough for the viewer to understand the page.
+5 questions received
+
+  ✅  1 verified — confirmed, ready to reuse
+  🔔  1 unconfirmed — suggested at 68% confidence, not yet confirmed
+  ❓  3 open — still needs a human
+```
 
 **[SAY]**
 > "Over time, Mira can see more than individual answers.
@@ -343,7 +329,10 @@ Hold long enough for the viewer to understand the page.
 >
 > what has been resolved,
 > what is still uncertain,
-> and what people keep needing help with."
+> and what people keep needing help with.
+>
+> And she tracks how confident she is in each answer.
+> The ones the team hasn't confirmed yet stay flagged — until someone does."
 
 **[SCREEN]** Scroll slowly to `Enhancement Opportunities`.
 
@@ -422,12 +411,13 @@ Patterns the product team can act on
 Let each stage illuminate slowly.
 
 **[SAY]**
-> "Most knowledge tools begin
-> after the work is finished.
+> "Teams spend nearly a full day every week
+> chasing information a colleague already has.
 >
-> They ask someone to stop,
-> write down what happened,
-> and keep it updated."
+> Most knowledge tools try to fix that
+> by asking someone to stop working and start documenting.
+>
+> Nobody does."
 
 **[SCREEN]** Show the verified answer and the approved product insight side by side.
 
