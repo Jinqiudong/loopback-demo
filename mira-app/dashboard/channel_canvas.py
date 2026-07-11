@@ -47,9 +47,25 @@ _CLUSTER_THRESHOLD = 0.75  # cosine similarity to be grouped in the same topic
 # ── public API ────────────────────────────────────────────────────────────────
 
 def get_or_create_canvas(client, channel_id: str) -> Optional[str]:
-    """Return canvas_id for this channel, creating one if needed."""
+    """Return canvas_id for this channel, creating one if needed.
+
+    Lookup order:
+    1. In-memory cache (canvas_ids.json on local dev)
+    2. Environment variable CANVAS_ID_<CHANNEL_ID> — set this in Railway Variables
+       when the canvas already exists and can't be recreated (free plan limit)
+    3. Create a new canvas via Slack API
+    """
     if channel_id in _channel_canvas_ids:
         return _channel_canvas_ids[channel_id]
+
+    # Railway / persistent env-var fallback — avoids filesystem dependency
+    env_key = f"CANVAS_ID_{channel_id}"
+    env_canvas_id = os.environ.get(env_key)
+    if env_canvas_id:
+        _channel_canvas_ids[channel_id] = env_canvas_id
+        logger.info("Using canvas %s from env var %s", env_canvas_id, env_key)
+        return env_canvas_id
+
     try:
         resp = client.conversations_canvases_create(
             channel_id=channel_id,
@@ -64,8 +80,8 @@ def get_or_create_canvas(client, channel_id: str) -> Optional[str]:
         _save_canvas_ids(_channel_canvas_ids)
         logger.info("Created canvas %s for channel %s", canvas_id, channel_id)
         return canvas_id
-    except Exception:
-        logger.warning("Failed to create canvas for %s", channel_id, exc_info=True)
+    except Exception as e:
+        logger.warning("Failed to create canvas for %s: %s", channel_id, e)
         return None
 
 
