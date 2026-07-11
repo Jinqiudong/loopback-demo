@@ -33,12 +33,24 @@ Hold for two seconds, then cut to a live Slack channel.
 > "Every day, someone asks a question
 > their team may have already answered.
 >
-> The answer may exist somewhere in Slack,
-> but the context, the owner, and the proof that it worked
-> disappear when the thread goes quiet.
+> The answer exists — in a resolved thread,
+> from a colleague who took the time to explain it.
+> But when the conversation ends,
+> the context, the owner, and the proof that it worked
+> disappear with it.
 >
-> LoopBack turns resolved conversations
-> into verified organizational memory."
+> LoopBack is built around one idea:
+> the knowledge your team creates in Slack
+> should stay in Slack.
+>
+> At the center of LoopBack is Mira —
+> an AI teammate who lives inside your workspace.
+> She helps questions get answered,
+> and captures every resolved conversation
+> into a Knowledge Vault:
+> a growing, verified memory built from real team exchanges.
+>
+> The next time anyone asks — in any words — Mira remembers."
 
 **[SCREEN]** In the Slack message box, type and send:
 
