@@ -114,10 +114,14 @@ def _vault_hit_blocks(result: dict[str, Any],
     answer = _truncate(result.get("answer", ""))
     confidence = result.get("confidence", 0)
     usage = result.get("usage_count", 0)
-    owner_id = result.get("owner_id", "")
-    source_thread = result.get("source_thread")
+    owner_id = result.get("owner_id") or ""
+    source_thread = result.get("source_thread") or ""
 
     blocks = [
+        {
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": "💡 *A similar question was already answered* — see details below"}],
+        },
         {
             "type": "section",
             "text": {"type": "mrkdwn", "text": answer},
@@ -203,9 +207,10 @@ def _resolver_answer_blocks(result: dict[str, Any],
 
 def _verified_blocks(result: dict[str, Any]) -> list[dict]:
     answer = _truncate(result.get("answer", ""))
-    owner = result.get("owner_id", "")
+    owner = result.get("owner_id") or ""
+    confidence = result.get("confidence", 0)
     usage = result.get("usage_count", 1)
-    source_thread = result.get("source_thread")
+    source_thread = result.get("source_thread") or ""
 
     blocks = [
         {
@@ -217,11 +222,14 @@ def _verified_blocks(result: dict[str, Any]) -> list[dict]:
     meta_parts = []
     if owner:
         meta_parts.append(f"answered by <@{owner}>")
+    if confidence:
+        meta_parts.append(f"*{int(confidence * 100)}% confidence*")
     if usage > 1:
         meta_parts.append(f"helped {usage} teammates")
     if source_thread:
         meta_parts.append(f"<{source_thread}|View original thread>")
-    meta_parts.append("next time this is asked, Mira answers instantly")
+    if not meta_parts or not source_thread:
+        meta_parts.append("next time this is asked, Mira answers instantly")
 
     blocks.append({
         "type": "context",
