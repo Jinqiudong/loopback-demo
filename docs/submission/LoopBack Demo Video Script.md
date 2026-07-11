@@ -347,26 +347,26 @@ Open the Slack Canvas.
 > And she tracks how confident she is in each answer.
 > The ones the team hasn't confirmed yet stay flagged — until someone does."
 
-**[SCREEN]** Scroll slowly to `Enhancement Opportunities`.
+**[SCREEN]** Scroll slowly to `Enhancement Opportunities` section in the Canvas.
 
 ---
 
 ## From repeated questions to a product insight
 
-**[SCREEN]** Show an AI-written proposal such as:
+**[SCREEN]** Show the Enhancement Opportunities section in the Canvas — hold 3 seconds, let the viewer read:
 
 ```
-Approval-rate reporting repeatedly fails
-when product_type is missing or inconsistent.
+🌱 Enhancement Opportunities
+AI-generated from resolved questions · This Month (July 2026)
 
-Recommended enhancement:
+Approval rate drops lack self-serve diagnosis  ·  5 related questions
+- All 5 questions this month are variations of the same concern...
+- No question was resolved without human involvement...
+- Suggested: Create a runbook or dashboard annotation explaining
+  common causes of approval rate fluctuations...
 
-Validate product_type during ingestion
-and alert the data team before affected records
-enter downstream reporting.
+[ Approve ]   [ Defer ]   [ Reject ]
 ```
-
-Do not scroll while the viewer is reading.
 
 **[SAY]**
 > "As Mira learns how the team works,
@@ -376,28 +376,13 @@ Do not scroll while the viewer is reading.
 > no predefined categories, no templates —
 > and generates this analysis from what it actually saw."
 
-**[SCREEN]** A Slack notification appears:
-
-```
-Enhancement Opportunity identified
-
-[ Approve ]   [ Defer ]   [ Reject ]
-```
-
-Jinqiu clicks `Approve`. Mira responds:
-
-```
-Added to the product backlog.
-```
+**[SCREEN]** Jinqiu clicks `Approve` inside the Canvas. Canvas confirms.
 
 **[SAY]**
 > "What looked like five separate support questions
-> becomes one thing the product team can fix."
-
-Pause briefly.
-
-**[SAY]**
-> "Support work becomes product learning."
+> becomes one thing the product team can fix.
+>
+> Support work becomes product learning."
 
 ---
 
