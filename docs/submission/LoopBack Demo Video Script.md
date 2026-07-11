@@ -39,18 +39,17 @@ Hold for two seconds, then cut to a live Slack channel.
 > the context, the owner, and the proof that it worked
 > disappear with it.
 >
-> LoopBack is built around one idea:
-> the knowledge your team creates in Slack
-> should stay in Slack.
+> LoopBack turns resolved conversations
+> into verified organizational memory.
 >
-> At the center of LoopBack is Mira —
+> Mira —
 > an AI teammate who lives inside your workspace.
 > She helps questions get answered,
 > and captures every resolved conversation
 > into a Knowledge Vault:
 > a growing, verified memory built from real team exchanges.
 >
-> The next time anyone asks — in any words — Mira remembers."
+> The next time anyone asks — Mira remembers."
 
 **[SCREEN]** In the Slack message box, type and send:
 
@@ -102,11 +101,14 @@ Mira is checking:
 > She doesn't begin by knowing everything
 > about the product or the way this team works.
 >
-> She begins by paying attention—
+> She begins by paying attention —
+> running an agentic Claude tool-use loop:
+> reading the actual SQL schema files from GitHub,
+> searching your Slack history in real time via the Real-Time Search API,
+> and deciding on her own what to look at next.
 >
-> reading the actual schema files,
-> searching your Slack history in real time,
-> and deciding on her own what to look at next."
+> This isn't keyword search.
+> Claude is driving the investigation."
 
 **[SCREEN]** Card transitions to Direction Check with two concise findings:
 
@@ -131,13 +133,13 @@ Does this look like the right direction?
 ```
 
 **[SAY]**
-> "These aren't keyword matches.
-> She read the actual files — and decided what mattered.
+> "She read the actual files — and decided what mattered.
 >
 > But finding something relevant
 > isn't the same as understanding what someone needs.
 >
-> So Mira checks with Jie first."
+> So before looping anyone in,
+> Mira checks with Jie first."
 
 ---
 
@@ -260,7 +262,7 @@ it feels like something might be wrong with the data
 >
 > They use different words.
 > They don't know Jie asked it.
-> And they don't know Jinqiu already solved it."
+> They don't know Jinqiu already solved it."
 
 **[SCREEN]** Send the message. Within two or three seconds, Mira displays:
 
@@ -282,15 +284,14 @@ View original thread
 Do not move the cursor. Do not scroll. Let the viewer experience the speed.
 
 **[SAY]**
-> "Different words.
+> "Different words. Same problem.
 >
-> Same problem.
+> Mira matched the intent using semantic vector search —
+> not keywords, but meaning.
 >
-> This time, Mira remembers.
+> The answer returns in seconds.
 >
-> The answer returns in seconds—
->
-> and the person who solved it the first time
+> The person who solved it the first time
 > never has to solve it again."
 
 ---
@@ -371,10 +372,9 @@ Do not scroll while the viewer is reading.
 > "As Mira learns how the team works,
 > she also begins to notice where the work keeps breaking down.
 >
-> She reads the resolved conversations together—
->
-> not simply to summarize what people said,
-> but to understand what the pattern means."
+> Claude reads the actual resolved task cards —
+> no predefined categories, no templates —
+> and generates this analysis from what it actually saw."
 
 **[SCREEN]** A Slack notification appears:
 
