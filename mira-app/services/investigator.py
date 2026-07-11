@@ -103,7 +103,8 @@ Rules:
 - Keep each point under 20 words before the link.
 - Use *bold* with single asterisks. Numbered list with 1. 2.
 - Start immediately with *Possible cause:* — no preamble.
-- If nothing found: write "I didn't find anything relevant in the codebase." """
+- If nothing found: write ONLY this exact line and nothing else: "I didn't find anything relevant in the codebase."
+  Do NOT add suggestions, next steps, bullet points, or any other content. Stop immediately after that line. """
 
 
 def _execute_tool(tool_name: str, tool_input: dict) -> str:
