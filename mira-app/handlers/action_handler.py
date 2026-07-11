@@ -125,24 +125,6 @@ def register_action_handlers(app):
                 blocks=build_period_selector(channel_id, updated_label=label),
                 text=f"Channel Insights canvas updated — {label}",
             )
-            # Enhancement Opportunity only appears after Canvas is confirmed visible
-            from pm.proposal_engine import generate_opportunities
-            opportunities = generate_opportunities(cards, label)
-            if opportunities:
-                opp = opportunities[0]
-                client.chat_postMessage(
-                    channel=body["channel"]["id"],
-                    blocks=[
-                        {"type": "section", "text": {"type": "mrkdwn",
-                            "text": f"🌱 *Enhancement Opportunity identified* — see Canvas for full analysis\n*{opp.get('title', '')}*  ·  {opp.get('related_count', 0)} related questions"}},
-                        {"type": "actions", "elements": [
-                            {"type": "button", "text": {"type": "plain_text", "text": "Approve"}, "style": "primary", "action_id": "proposal_approve"},
-                            {"type": "button", "text": {"type": "plain_text", "text": "Defer"}, "action_id": "proposal_defer"},
-                            {"type": "button", "text": {"type": "plain_text", "text": "Reject"}, "style": "danger", "action_id": "proposal_reject"},
-                        ]},
-                    ],
-                    text="Enhancement Opportunity identified — see Canvas for details",
-                )
         else:
             logger.warning("Canvas update failed for channel %s — check CANVAS_ID_%s env var", channel_id, channel_id)
 
