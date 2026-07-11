@@ -107,8 +107,9 @@ def register_mention_handler(app):
             vault_hit = confidence >= VAULT_HIGH_CONFIDENCE_THRESHOLD
 
             if vault_hit:
-                # High-confidence verified answer — no further confirmation needed
-                _vault.update_status(task_card_id, "verified")
+                # High-confidence verified answer — link vault_entry_id so Canvas can join correctly
+                _vault.update_status(task_card_id, "verified",
+                                     vault_entry_id=vault_result.get("entry_id"))
                 update_status_reaction(client, channel, thread_ts, "verified")
                 _update_card(client, channel, card_ts, question_text, "pending_confirm",
                              results=result_payload,

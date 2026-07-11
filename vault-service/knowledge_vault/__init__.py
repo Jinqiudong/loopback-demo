@@ -283,9 +283,11 @@ def _apply_signal_3(entry_id: str, new_answer: str, owner_id: str, task_card_id:
     return {"entry_id": entry_id, "status": "unconfirmed", "confidence_score": score}
 
 
-def update_status(task_card_id: str, new_status: str) -> dict:
+def update_status(task_card_id: str, new_status: str, vault_entry_id: str = None) -> dict:
     """
     Update a task card's status field.
+    Optionally link a vault_entry_id at the same time (used when a vault hit
+    creates a new task card so the Channel Insights Canvas can join correctly).
 
     Returns: { success: bool, updated_at: str }
     """
@@ -293,10 +295,11 @@ def update_status(task_card_id: str, new_status: str) -> dict:
         raise ValueError(f"Invalid status {new_status!r}. Valid: {sorted(VALID_STATUSES)}")
 
     now = _now()
-    _supabase.table("task_cards").update({
-        "status": new_status,
-        "updated_at": now,
-    }).eq("id", task_card_id).execute()
+    patch: dict = {"status": new_status, "updated_at": now}
+    if vault_entry_id:
+        patch["vault_entry_id"] = vault_entry_id
+
+    _supabase.table("task_cards").update(patch).eq("id", task_card_id).execute()
 
     return {"success": True, "updated_at": now}
 

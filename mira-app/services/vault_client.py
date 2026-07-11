@@ -47,11 +47,11 @@ class VaultClient:
         from knowledge_vault import upsert_vault_entry
         return upsert_vault_entry(task_card_id, question_canonical, answer, owner_id, signal, ambiguous, source_thread)
 
-    def update_status(self, task_card_id: str, new_status: str) -> dict[str, Any]:
+    def update_status(self, task_card_id: str, new_status: str, vault_entry_id: str = None) -> dict[str, Any]:
         if _STUB:
             return {"success": True, "updated_at": ""}
         from knowledge_vault import update_status
-        return update_status(task_card_id, new_status)
+        return update_status(task_card_id, new_status, vault_entry_id=vault_entry_id)
 
     def list_entries(self, limit: int = 20) -> list[dict[str, Any]]:
         if _STUB:
