@@ -173,17 +173,31 @@ def period_label(period: str) -> str:
 
 # ── canvas markdown builder ───────────────────────────────────────────────────
 
+_STATUS_PROGRESS = {
+    "pending_confirm": "💬 Suggested answer → ⏳ Awaiting confirmation",
+    "unconfirmed":     "💬 Suggested answer → ⏳ Awaiting confirmation",
+    "human_working":   "🔍 Investigated → ✓ Direction confirmed → ⏳ Resolver notified",
+    "escalate":        "🔍 Investigated → ✓ Confirmed → 👤 Escalated — needs follow-up",
+}
+
+_CATEGORY_EMOJI = {
+    "documentation": "📖",
+    "code":          "🔧",
+    "ux":            "🎨",
+    "process":       "📋",
+    "product":       "🚀",
+}
+
+
 def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
     from pm.proposal_engine import generate_opportunities
 
     now_str = datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
 
-    verified     = [c for c in cards if c["status"] == "verified"]
-    unanswered   = [c for c in cards if c["status"] in ("unconfirmed", "pending_confirm")]
-    open_q       = [c for c in cards if c["status"] in ("human_working", "escalate")]
-    total        = len(cards)
-
-    knowledge_ct = len(verified)
+    verified   = [c for c in cards if c["status"] == "verified"]
+    unanswered = [c for c in cards if c["status"] in ("unconfirmed", "pending_confirm")]
+    open_q     = [c for c in cards if c["status"] in ("human_working", "escalate")]
+    total      = len(cards)
 
     lines = [
         f"# Channel Insights — #{channel_name}",
@@ -194,25 +208,24 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
     ]
 
     # ── Section 1: Impact ────────────────────────────────────────────────────
-    lines += [
-        "## 📊 Impact",
-        "",
-        f"**{total} question{'s' if total != 1 else ''}** received in this channel",
-        "",
-        f"- ✅  **{len(verified)} answered** — confirmed correct, ready to reuse",
-        f"- 🔔  **{len(unanswered)} unanswered** — has a suggested answer, not yet confirmed (tagged below)",
-        f"- ❓  **{len(open_q)} open** — still needs a human to help",
-        "",
-    ]
+    lines += ["## 📊 Impact", ""]
+    lines.append(f"**{total} question{'s' if total != 1 else ''}** received this period.")
+    lines.append("")
 
-    if knowledge_ct > 0:
-        lines += [
-            f"**{knowledge_ct} new knowledge entr{'ies' if knowledge_ct != 1 else 'y'} created** this period.",
-            f"Mira can now auto-serve these questions instantly — no resolver needed next time.",
-            "",
-        ]
+    if verified:
+        lines.append(f"→ **{len(verified)} resolved** — answers ready to reuse, no resolver needed next time")
+    if unanswered:
+        lines.append(f"→ **{len(unanswered)} suggested** — has a candidate answer, awaiting confirmation")
+    if open_q:
+        lines.append(f"→ **{len(open_q)} open** — a teammate is being looped in")
 
-    lines += ["---", ""]
+    lines.append("")
+    if verified:
+        lines.append(
+            f"Mira can now auto-serve **{len(verified)} topic{'s' if len(verified) != 1 else ''}** instantly. "
+            f"Every verified answer means one less interruption next time around."
+        )
+    lines += ["", "---", ""]
 
     # ── Section 2: Knowledge Vault ───────────────────────────────────────────
     lines += ["## 🧠 Knowledge Vault", ""]
@@ -220,48 +233,64 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
     if verified:
         clusters = _cluster_by_topic(verified)
         for cluster in clusters:
-            topic = _topic_title(cluster)
-            # Best card = highest confidence
             best = max(cluster, key=lambda c: c.get("confidence_score", 0))
             conf = int(best.get("confidence_score", 0) * 100)
             owner = best.get("owner_id", "")
-            owner_str = f" · answered by <@{owner}>" if owner else ""
             thread = best.get("source_thread", "")
-            thread_str = f" · [View thread]({thread})" if thread else ""
+
+            # Compact topic title (≤70 chars)
+            topic = _topic_title(cluster)
+            owner_str = f" · answered by <@{owner}>" if owner else ""
+            thread_str = f" · [View original thread ↗]({thread})" if thread else ""
 
             lines.append(f"**{topic}**")
             lines.append(f"✅ {conf}% confidence{owner_str}{thread_str}")
-
-            for card in cluster:
-                q = card["question"]
-                t = card.get("source_thread", "")
-                t_str = f" [↗]({t})" if t else ""
-                lines.append(f"  - {q}{t_str}")
             lines.append("")
+
+            # Indent similar questions that were answered by this same entry
+            if len(cluster) > 1:
+                for card in cluster:
+                    q = card["question"]
+                    q_short = q if len(q) <= 80 else q[:77] + "..."
+                    t = card.get("source_thread", "")
+                    t_str = f" [↗]({t})" if t else ""
+                    lines.append(f"  - {q_short}{t_str}")
+                lines.append("")
+            else:
+                q = best["question"]
+                q_short = q if len(q) <= 80 else q[:77] + "..."
+                t = best.get("source_thread", "")
+                t_str = f" [↗]({t})" if t else ""
+                lines.append(f"  - {q_short}{t_str}")
+                lines.append("")
     else:
         lines += ["_No verified knowledge yet this period._", ""]
 
     if unanswered:
         lines += [
             "### 🔔 Unanswered — needs confirmation",
-            "_These have a suggested answer but no one confirmed it. Tag the resolver to follow up._",
+            "_Has a suggested answer but not yet confirmed. Tag the resolver to follow up._",
             "",
         ]
         for card in unanswered:
             q = card["question"]
+            q_short = q if len(q) <= 80 else q[:77] + "..."
             t = card.get("source_thread", "")
-            t_str = f" [View thread]({t})" if t else ""
-            lines.append(f"- {q}{t_str}")
+            t_str = f" [View thread ↗]({t})" if t else ""
+            lines.append(f"- {q_short}{t_str}")
         lines.append("")
 
     if open_q:
         lines += ["### ❓ Open — no answer yet", ""]
         for card in open_q:
             q = card["question"]
+            q_short = q if len(q) <= 80 else q[:77] + "..."
             t = card.get("source_thread", "")
-            t_str = f" [View thread]({t})" if t else ""
-            lines.append(f"- {q}{t_str}")
-        lines.append("")
+            t_str = f"  [View thread ↗]({t})" if t else ""
+            status_label = _STATUS_PROGRESS.get(card["status"], f"Status: {card['status']}")
+            lines.append(f"**{q_short}**")
+            lines.append(f"{status_label}{t_str}")
+            lines.append("")
 
     lines += ["---", ""]
 
@@ -285,11 +314,13 @@ def _opportunity_section(opportunities: list[dict], label: str) -> list[str]:
         f"*AI-generated from resolved questions · {label}*",
         "",
     ]
-    for opp in opportunities:
+    for i, opp in enumerate(opportunities, 1):
         title = opp.get("title", "Untitled pattern")
         count = opp.get("related_count", 0)
+        category = opp.get("category", "")
+        emoji = _CATEGORY_EMOJI.get(category, "💡")
         bullets = opp.get("bullets", [])
-        lines.append(f"**{title}**  ·  {count} related question{'s' if count != 1 else ''}")
+        lines.append(f"**{i}. {emoji} {title}**  ·  {count} related question{'s' if count != 1 else ''}")
         for b in bullets:
             lines.append(f"- {b}")
         lines.append("")

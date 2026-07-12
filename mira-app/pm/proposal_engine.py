@@ -25,8 +25,16 @@ and identify 1-3 patterns that suggest a product, documentation, or process impr
 
 Return ONLY a JSON array. Each item must have:
 - "title": a 5-8 word phrase naming the pattern (e.g. "Leave policy not clearly documented")
+- "category": one of "documentation", "code", "ux", "process", "product"
 - "related_count": number of questions that relate to this pattern
 - "bullets": array of 2-3 strings — first bullet(s) describe what you observed, last bullet starts with "Suggested:"
+
+Category guide:
+  documentation — missing or unclear docs, runbooks, FAQs
+  code          — bug, data pipeline issue, schema/query problem
+  ux            — confusing UI, poor discoverability
+  process       — unclear workflow, missing ownership, manual steps that should be automated
+  product       — missing feature or capability gap
 
 If there are no meaningful patterns, return an empty array [].
 Do not include any text outside the JSON array."""

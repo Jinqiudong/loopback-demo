@@ -57,6 +57,15 @@ def register_action_handlers(app):
         except Exception:
             logger.exception("Vault confirm failed")
 
+        # Silently refresh Channel Insights Canvas so it stays current after each resolution
+        try:
+            from dashboard.channel_canvas import update_canvas, period_since, period_label
+            cards = _vault.get_channel_insights(channel, since=period_since("month"))
+            ch_name = body.get("channel", {}).get("name") or channel
+            update_canvas(client, channel, cards, ch_name, period_label("month"))
+        except Exception:
+            pass  # canvas refresh is best-effort, never block the confirm flow
+
         # For vault hits, keep the original source_thread from the existing entry
         display_source_thread = source_thread if not vault_hit else value.get("source_thread", source_thread)
 
