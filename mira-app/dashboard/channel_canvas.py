@@ -238,8 +238,15 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
             owner = best.get("owner_id", "")
             thread = best.get("source_thread", "")
 
-            # Compact topic title (≤70 chars)
-            topic = _topic_title(cluster)
+            # Use the answer as the knowledge title — more descriptive than the question
+            answer = best.get("answer", "") or best.get("question", "")
+            # Strip common prefixes ("confirmed — ", "Confirmed, " etc.)
+            for prefix in ("confirmed — ", "confirmed — ", "Confirmed, ", "Confirmed — "):
+                if answer.lower().startswith(prefix.lower()):
+                    answer = answer[len(prefix):]
+                    break
+            topic = answer[:70].rstrip() + ("..." if len(answer) > 70 else "")
+
             owner_str = f" · answered by <@{owner}>" if owner else ""
             thread_str = f" · [View original thread ↗]({thread})" if thread else ""
 

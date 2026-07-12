@@ -364,7 +364,7 @@ def get_channel_task_cards(channel_id: str, since: str) -> list[dict]:
     if vault_ids:
         ve_result = (
             _supabase.table("vault_entries")
-            .select("id, question_canonical, embedding, confidence_score, source_thread, owner_id")
+            .select("id, question_canonical, current_answer, embedding, confidence_score, source_thread, owner_id")
             .in_("id", vault_ids)
             .execute()
         )
@@ -397,6 +397,7 @@ def get_channel_task_cards(channel_id: str, since: str) -> list[dict]:
         enriched.append({
             "task_card_id": card["id"],
             "question": ve.get("question_canonical") or card["question_raw"],
+            "answer": ve.get("current_answer", ""),
             "status": card["status"],
             "thread_ts": card["thread_ts"],
             "source_thread": source_thread,
