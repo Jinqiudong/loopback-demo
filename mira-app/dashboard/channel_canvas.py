@@ -40,6 +40,7 @@ def _save_canvas_ids(ids: dict) -> None:
 
 
 _channel_canvas_ids: dict[str, str] = _load_canvas_ids()
+_user_name_cache: dict[str, str] = {}
 
 _CLUSTER_THRESHOLD = 0.75  # cosine similarity to be grouped in the same topic
 
@@ -85,6 +86,23 @@ def get_or_create_canvas(client, channel_id: str) -> Optional[str]:
         return None
 
 
+def _get_user_name(client, user_id: str) -> str:
+    """Return display name for a Slack user ID, with in-memory cache."""
+    if not user_id:
+        return ""
+    if user_id in _user_name_cache:
+        return _user_name_cache[user_id]
+    try:
+        resp = client.users_info(user=user_id)
+        profile = resp["user"].get("profile", {})
+        name = profile.get("display_name") or profile.get("real_name") or user_id
+        _user_name_cache[user_id] = name
+        return name
+    except Exception:
+        _user_name_cache[user_id] = user_id
+        return user_id
+
+
 def update_canvas(client, channel_id: str, cards: list[dict[str, Any]],
                   channel_name: str, period_label: str) -> bool:
     """Rebuild canvas content for the given cards and time period."""
@@ -92,7 +110,7 @@ def update_canvas(client, channel_id: str, cards: list[dict[str, Any]],
     if not canvas_id:
         return False
 
-    markdown = _build_markdown(cards, channel_name, period_label)
+    markdown = _build_markdown(cards, channel_name, period_label, client)
     try:
         client.canvases_edit(
             canvas_id=canvas_id,
@@ -189,7 +207,7 @@ _CATEGORY_EMOJI = {
 }
 
 
-def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
+def _build_markdown(cards: list[dict], channel_name: str, label: str, client=None) -> str:
     from pm.proposal_engine import generate_opportunities
 
     now_str = datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
@@ -245,7 +263,8 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
                     break
             answer = answer[:1].upper() + answer[1:] if answer else answer
 
-            owner_str = f" · answered by <@{owner}>" if owner else ""
+            owner_name = _get_user_name(client, owner) if client and owner else owner
+            owner_str = f" · answered by @{owner_name}" if owner_name else ""
 
             lines.append(f"**{answer}**")
             lines.append(f"✅ {conf}% confidence{owner_str}")
