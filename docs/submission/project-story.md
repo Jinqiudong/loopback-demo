@@ -18,7 +18,7 @@ That repetition is what inspired LoopBack.
 
 We kept seeing the same pattern: the same questions resurfacing in different words, the same people being interrupted for answers they had already given, and useful explanations getting buried before they could become shared knowledge. According to McKinsey, knowledge workers spend nearly 20% of their workweek — almost a full day — just looking for information or tracking down a colleague who can help. The problem was not that teams lacked answers. The problem was that resolved answers were not becoming reusable memory.
 
-We also realized that the most trustworthy workplace knowledge often starts with humans, not AI. It comes from the people who know the context, the requester who confirms whether an answer worked, and the owner who can verify whether it should be trusted. So instead of building an AI that replaces those people, we built LoopBack to preserve and compound what they already know.
+We also realized that the most trustworthy workplace knowledge often starts with humans, not AI. It comes from the people who know the context, the requester who confirms whether an answer worked, and the owner who can verify whether it should be trusted. So instead of building an AI that replaces those people, we built LoopBack to preserve and compound what they already know. LoopBack combines AI with product mechanisms designed around how workplace knowledge is created, validated, and maintained — helping teams turn everyday conversations into reliable, reusable knowledge that grows stronger over time.
 
 At the center of LoopBack is Mira, an AI teammate in Slack that helps turn resolved conversations into reusable knowledge. Sometimes Mira is invited directly when someone needs help. Other times, a useful exchange happens naturally: one person asks, another person answers, and Mira can lightly ask whether that answer should be saved. In both cases, humans remain the source of truth.
 
@@ -37,6 +37,8 @@ It is built around two things working together: Mira, an AI teammate in Slack, a
 **[Diagram 1: LoopBack Mechanism Loop — placeholder]**
 
 Mira can enter the loop in two ways. In the explicit flow, someone @mentions Mira when they need help finding, clarifying, or routing an answer. In the ambient capture flow, Mira can lightly nudge when a normal Slack thread appears to contain a useful question-and-answer exchange, asking whether it should be saved. In both cases, humans remain the source of truth.
+
+Most knowledge tools require someone to maintain them manually: writing entries, keeping them current, deciding what is worth saving, and updating stale documentation. LoopBack works differently — it captures knowledge from conversations your team is already having, with human feedback and verification built into the process.
 
 When someone asks Mira a question, she works through three tiers, always in the same order.
 
@@ -73,6 +75,8 @@ LoopBack is built as a Slack-native application using Slack's Bolt framework for
 **The Channel Insights Canvas** renders inside Slack using the Canvas API. It shows a live breakdown of questions by status, verified Knowledge Vault entries grouped by topic using cosine-similarity clustering, and AI-generated Enhancement Opportunities from Claude's analysis of actual task card content — not predefined templates.
 
 One architectural decision mattered more than any single API call: Mira never relays. She searches because that's faster than waiting on a human. But the moment a real conversation is needed, she steps back entirely. Enforcing that as a hard constraint — not a soft guideline — required more careful state machine design than anything else in the build.
+
+The hardest part was not just connecting Slack, Supabase, OpenAI, Claude, and GitHub. It was designing a loop where AI helps with understanding, retrieval, summarization, and pattern detection, while humans remain responsible for the knowledge itself. LoopBack uses AI to make workplace knowledge easier to find and maintain, but trust comes from the people who created, used, and verified the answer.
 
 **[Diagram 3: Task Card by Stage — placeholder]**
 
