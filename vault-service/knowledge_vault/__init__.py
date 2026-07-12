@@ -205,7 +205,11 @@ def upsert_vault_entry(
         if status == "verified":
             patch["last_confirmed_at"] = now
         _supabase.table("vault_entries").update(patch).eq("id", existing_entry_id).execute()
-        _supabase.table("task_cards").update({"confidence_signal": signal}).eq("id", task_card_id).execute()
+        _supabase.table("task_cards").update({
+            "confidence_signal": signal,
+            "status": status,
+            "updated_at": now,
+        }).eq("id", task_card_id).execute()
         return {"entry_id": existing_entry_id, "status": status, "confidence_score": score}
 
     # New entry — generate embedding for canonical question text
@@ -231,6 +235,8 @@ def upsert_vault_entry(
     _supabase.table("task_cards").update({
         "vault_entry_id": entry_id,
         "confidence_signal": signal,
+        "status": status,
+        "updated_at": now,
     }).eq("id", task_card_id).execute()
 
     return {"entry_id": entry_id, "status": status, "confidence_score": score}
