@@ -236,40 +236,43 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
             best = max(cluster, key=lambda c: c.get("confidence_score", 0))
             conf = int(best.get("confidence_score", 0) * 100)
             owner = best.get("owner_id", "")
-            thread = best.get("source_thread", "")
 
-            # Use the answer as the knowledge title — more descriptive than the question
+            # Full answer as title — strip "Confirmed — " prefix, no truncation
             answer = best.get("answer", "") or best.get("question", "")
-            # Strip common prefixes ("confirmed — ", "Confirmed, " etc.)
-            for prefix in ("confirmed — ", "confirmed — ", "Confirmed, ", "Confirmed — "):
+            for prefix in ("confirmed — ", "Confirmed — ", "Confirmed, ", "confirmed, "):
                 if answer.lower().startswith(prefix.lower()):
                     answer = answer[len(prefix):]
                     break
-            topic = answer[:70].rstrip() + ("..." if len(answer) > 70 else "")
+            answer = answer[:1].upper() + answer[1:] if answer else answer
 
             owner_str = f" · answered by <@{owner}>" if owner else ""
-            thread_str = f" · [View original thread ↗]({thread})" if thread else ""
 
-            lines.append(f"**{topic}**")
-            lines.append(f"✅ {conf}% confidence{owner_str}{thread_str}")
+            lines.append(f"**{answer}**")
+            lines.append(f"✅ {conf}% confidence{owner_str}")
             lines.append("")
 
-            # Deduplicate by question text, show count for repeats
+            # Sort by thread_ts ascending — original question first
+            sorted_cluster = sorted(
+                cluster, key=lambda c: float(c.get("thread_ts") or 0)
+            )
+            # Deduplicate by question text
             seen_q: dict[str, dict] = {}
-            for card in cluster:
+            for card in sorted_cluster:
                 key = card["question"].strip().lower()
-                if key in seen_q:
-                    seen_q[key]["count"] += 1
-                else:
-                    seen_q[key] = {"card": card, "count": 1}
+                if key not in seen_q:
+                    seen_q[key] = card
 
-            for q_data in seen_q.values():
-                q = q_data["card"]["question"]
-                q_short = q if len(q) <= 80 else q[:77] + "..."
-                t = q_data["card"].get("source_thread", "")
+            for i, card in enumerate(seen_q.values()):
+                q = card["question"]
+                q_short = q if len(q) <= 72 else q[:69] + "..."
+                t = card.get("source_thread", "")
                 t_str = f" [↗]({t})" if t else ""
-                count_str = f" · asked {q_data['count']} times" if q_data["count"] > 1 else ""
-                lines.append(f"  - {q_short}{count_str}{t_str}")
+                date_str = _ts_to_date(card.get("thread_ts", ""))
+                date_prefix = f"{date_str} · " if date_str else ""
+                if i == 0:
+                    lines.append(f"Original thread · {date_prefix}{q_short}{t_str}")
+                else:
+                    lines.append(f"  ↳ {date_prefix}{q_short}{t_str}")
             lines.append("")
     else:
         lines += ["_No verified knowledge yet this period._", ""]
@@ -355,14 +358,31 @@ def _cluster_by_topic(cards: list[dict]) -> list[list[dict]]:
                     break
         if not placed:
             clusters.append([card])
-    return clusters
+    return _merge_clusters_by_answer(clusters)
 
 
-def _topic_title(cluster: list[dict]) -> str:
-    """Question with the highest confidence score becomes the topic title."""
-    best = max(cluster, key=lambda c: c.get("confidence_score", 0.0))
-    q = best["question"]
-    return q if len(q) <= 60 else q[:57].rstrip() + "..."
+def _merge_clusters_by_answer(clusters: list[list[dict]]) -> list[list[dict]]:
+    """Merge separate clusters that share the same answer text — catches duplicate
+    vault entries created for the same knowledge (e.g. vault hit + original)."""
+    merged: list[list[dict]] = []
+    answer_key_to_idx: dict[str, int] = {}
+    for cluster in clusters:
+        best = max(cluster, key=lambda c: c.get("confidence_score", 0))
+        answer = (best.get("answer") or "").strip().lower()[:120]
+        if answer and answer in answer_key_to_idx:
+            merged[answer_key_to_idx[answer]].extend(cluster)
+        else:
+            if answer:
+                answer_key_to_idx[answer] = len(merged)
+            merged.append(cluster)
+    return merged
+
+
+def _ts_to_date(ts_str: str) -> str:
+    try:
+        return datetime.fromtimestamp(float(ts_str), tz=timezone.utc).strftime("%b %d")
+    except Exception:
+        return ""
 
 
 def _cosine_sim(a: list[float], b: list[float]) -> float:
