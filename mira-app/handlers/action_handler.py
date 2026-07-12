@@ -144,6 +144,10 @@ def register_action_handlers(app):
             )
         else:
             logger.warning("Canvas update failed for channel %s — check CANVAS_ID_%s env var", channel_id, channel_id)
+            client.chat_postMessage(
+                channel=channel_id,
+                text=f"⚠️ Canvas update failed. Set env var `CANVAS_ID_{channel_id}` in Railway with the canvas ID.",
+            )
 
     @app.action("insights_this_month")
     def handle_insights_month(ack, body, client, logger):
