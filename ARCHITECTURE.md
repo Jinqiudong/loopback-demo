@@ -8,11 +8,11 @@
 
 LoopBack is a Slack-native system with three layers of value:
 
-- **Mira** — the AI colleague you `@` in Slack. She searches three knowledge tiers in parallel,
-  escalates to humans only when genuinely needed, and never relays between requester and resolver.
+- **Mira** — the AI colleague you `@` in Slack. She searches three knowledge tiers in order,
+  checks in with the requester before looping in anyone, and never relays between requester and resolver.
 - **Knowledge Vault** — the growing, verified memory Mira builds from every resolved conversation.
-- **Product Intelligence** — Mira's PM identity: she analyzes Vault patterns to generate
-  Enhancement Proposals, turning repeated support questions into product backlog items.
+- **Channel Insights** — Mira's PM identity: she analyzes Vault patterns to surface
+  Enhancement Opportunities, turning repeated support questions into product signals.
 
 ---
 
@@ -34,46 +34,43 @@ User @ Mira with a question
 Intent classification (Claude) — question or noise?
     │ QUESTION
     ▼
-Tier 1: Knowledge Vault (fastest, cheapest — always first)
-    ├─ confidence > 0.85  → return verified answer instantly
-    ├─ confidence 0.7–0.85 → clarifying question first
+Tier 1: Knowledge Vault (fastest — always first)
+    ├─ confidence ≥ 0.82  → return verified answer → pending_confirm with requester
     └─ no match → Tier 2
             │
             ▼
-Tier 2: Agentic investigation (Claude tool use = MCP semantically)
+Tier 2: Agentic investigation (Claude tool-use loop — MCP pattern)
     Claude receives the question + tool list and autonomously decides what to search:
-    ├─ search_github(query)      — searches analytics codebase (SQL, schema, docs)
-    ├─ read_file(path)           — reads specific files from the repo
+    ├─ search_github(query)        — searches analytics codebase (SQL, schema)
+    ├─ read_file(path)             — reads specific files from the repo
     ├─ search_slack_history(query) — Real-Time Search API
-    └─ read_known_issues()       — reads known issues doc directly
+    └─ read_known_issues()         — reads known issues doc directly
 
     Claude runs multiple tool calls until it has enough context.
     This is what makes Mira a genuine agent, not a scripted chatbot.
             │
-            ├─ findings assembled → task card enriched
-            │   Mira checks in with requester:
+            ├─ findings assembled → direction_check card posted to requester:
             │   "Based on what I found, does this look right?"
-            │   Requester confirms → Mira loops in resolver with full context
+            │   Requester confirms → Mira loops in resolver WITH full context already assembled
             └─ nothing found → escalate directly to resolver
                     │
                     ▼
 Tier 3: Escalate to resolver
     Task card includes Mira's investigation findings (not empty)
     Resolver replies DIRECTLY in thread — Mira listens, never relays
-    Requester gives a signal → Mira writes to Vault automatically (no resolver action needed)
+    Mira captures the answer automatically (no resolver action needed)
             │
             ▼
-Three-signal auto-save (no manual steps):
-    Signal 1 (clear confirm)  → verified
-    Signal 2 (silence)        → "Suggested, not yet verified" → accumulates via future use
-    Signal 3 (denial)         → escalate, old answer → version_history
+Three-signal auto-save (no manual steps, requester signals only):
+    Signal 1 (clear confirm)  → verified   (confidence: 0.90, +0.05 per reuse)
+    Signal 2 (silence)        → unconfirmed → accumulates trust via future reuse
+    Signal 3 (denial)         → escalate, old answer pushed to version_history
             │
             ▼
-PM identity (async, background — Claude-powered)
-    Mira analyzes patterns across task cards semantically
-    Notices recurring themes, root causes, what resolver answers reveal
-    Generates AI-written Enhancement Proposals (content determined by LLM, not templates)
-    Product Owner reviews in Canvas Dashboard → approve / reject / defer
+Channel Insights (async, on @Mira insights)
+    Claude analyzes accumulated task cards semantically
+    Surfaces Enhancement Opportunities (LLM-generated, no templates)
+    Channel Insights Canvas updated — Impact / Knowledge Vault / Open / Opportunities
 ```
 
 ---
@@ -93,9 +90,9 @@ PM identity (async, background — Claude-powered)
 │  │  mira-app   │── escalates, listens ──►(Slack thread)      │
 │  │   (Mira)    │                        └────────────┘       │
 │  └──────┬──────┘                                             │
-│         │   Canvas Dashboard (PM view + Requester view)      │
+│         │   Channel Insights Canvas (@Mira insights)         │
 └─────────┼──────────────────────────────────────────────────┘
-          │  Python import (API contract — 4 functions)
+          │  Python import (API contract — 5 functions)
           ▼
   ┌──────────────────┐
   │  vault-service   │
@@ -105,9 +102,9 @@ PM identity (async, background — Claude-powered)
           ▼
   ┌──────────────────┐     ┌──────────────────┐
   │    Supabase      │     │   GitHub MCP     │
-  │  (PostgreSQL +   │     │  Data Dict MCP   │
-  │    pgvector)     │     └──────────────────┘
-  └──────────────────┘
+  │  (PostgreSQL +   │     │ (via investigator │
+  │    pgvector)     │     │  Claude tool use) │
+  └──────────────────┘     └──────────────────┘
 ```
 
 ---
@@ -122,23 +119,25 @@ mira-app/
 ├── config.py                 # env var loading + validation
 ├── handlers/
 │   ├── mention_handler.py    # @Mira listener, 3-tier search orchestration
-│   ├── action_handler.py     # button actions (confirm / not helpful)
+│   ├── action_handler.py     # button actions (confirm / not helpful / insights period)
 │   └── resolution_handler.py # detects resolver replies, triggers Vault write
 ├── services/
-│   ├── intent.py             # Claude API — QUESTION vs NOISE
+│   ├── intent.py             # Claude API — QUESTION vs INSIGHTS vs NOISE
 │   ├── task_card.py          # Block Kit card builder (all 7 statuses)
-│   ├── vault_client.py       # Python wrapper — 4-function contract
-│   ├── slack_search.py       # Real-Time Search API integration
-│   ├── mcp_github.py         # GitHub MCP client (Week 2)
-│   └── mcp_data_dict.py      # Data Dictionary MCP client (Week 2)
+│   ├── vault_client.py       # Python wrapper — 5-function API contract
+│   ├── slack_search.py       # Slack Real-Time Search API integration
+│   ├── investigator.py       # Claude tool-use agentic loop (MCP pattern)
+│   │                         # Tools: search_github, read_file, search_slack_history
+│   ├── mcp_github.py         # GitHub tool implementations for investigator
+│   └── reactions.py          # Slack reaction helpers (status → emoji)
 ├── pm/
-│   └── proposal_engine.py    # Pattern analysis → Enhancement Proposals (Week 2–3)
+│   └── proposal_engine.py    # Claude-powered pattern analysis → Enhancement Opportunities
 └── dashboard/
-    └── canvas_view.py        # Slack Canvas API — dual-perspective dashboard (Week 3)
+    └── channel_canvas.py     # Slack Canvas API — Channel Insights (Impact/KV/Open/Opportunities)
 ```
 
 **Responsibilities:** intent classification, 3-tier search orchestration, task card lifecycle,
-resolution detection, DM to resolver, Enhancement Proposal generation, Canvas Dashboard.
+resolution detection, Enhancement Opportunity generation, Channel Insights Canvas.
 
 **Does NOT own:** embeddings, confidence scoring, database schema, persistence.
 
@@ -149,10 +148,13 @@ resolution detection, DM to resolver, Enhancement Proposal generation, Canvas Da
 ```
 vault-service/
 ├── knowledge_vault/
-│   └── __init__.py           # public API — 4 functions
-├── schema.sql                # task_cards + vault_entries tables + match_vault_entries RPC
-├── embeddings.py             # OpenAI text-embedding-3-small
+│   └── __init__.py           # public API — 5 functions
+├── api/
+│   ├── search_vault.py       # semantic search endpoint
+│   ├── upsert_vault_entry.py # write/update entry with signal logic
+│   └── update_status.py      # task card status + vault_entry_id link
 ├── confidence.py             # scoring constants + accumulation helpers
+├── embeddings.py             # OpenAI text-embedding-3-small
 └── smoke_test.py             # end-to-end test against real Supabase
 ```
 
@@ -166,9 +168,10 @@ three-signal confidence logic, version history (push-on-update, never delete).
 | Service | Role |
 |---------|------|
 | Supabase (PostgreSQL + pgvector) | Persistent storage — only vault-service talks to it directly |
-| GitHub MCP | Read code, SQL files, schema — Tier 2 search source |
-| Data Dictionary MCP | Field definitions, business terms — Tier 2 search source |
-| Slack Canvas API | Dashboard surface — richer than Block Kit, still Slack-native |
+| GitHub (via Claude tool use) | Read code, SQL files, schema — Tier 2 search source |
+| Slack Real-Time Search API | Workspace message history search — Tier 2 search source |
+| Slack Canvas API | Channel Insights surface — markdown, live-updated |
+| Slack Block Kit | Task card UI — 7-state lifecycle |
 
 ---
 
@@ -190,13 +193,14 @@ Returns:
   entry_id:          uuid | None,
   answer:            str | None,
   owner_id:          str | None,
-  confidence:        float,        # 0–1
-  last_confirmed_at: str | None
+  confidence:        float,        # cosine similarity 0–1
+  last_confirmed_at: str | None,
+  source_thread:     str | None    # permalink to original resolution thread
 }
 ```
-Thresholds: `> 0.85` instant · `0.70–0.85` clarify first · `< 0.70` no match.
+Threshold: `≥ 0.82` → vault hit (high confidence, return answer immediately).
 
-### `upsert_vault_entry(task_card_id, question_canonical, answer, owner_id, signal, ambiguous)`
+### `upsert_vault_entry(task_card_id, question_canonical, answer, owner_id, signal, ambiguous, source_thread)`
 ```
 signal: 'signal_1' | 'signal_2' | 'signal_3'
 ambiguous: bool  # signal_2 only — True = ambiguous reply, False = silence
@@ -204,15 +208,35 @@ ambiguous: bool  # signal_2 only — True = ambiguous reply, False = silence
 Returns:
 {
   entry_id:         uuid,
-  status:           'verified' | 'unconfirmed' | 'outdated',
+  status:           'verified' | 'unconfirmed',
   confidence_score: float
 }
 ```
+Also updates `task_cards.status` to match vault_entry status.
 
-### `update_status(task_card_id, new_status)`
+### `update_status(task_card_id, new_status, vault_entry_id=None)`
 ```
+vault_entry_id: uuid | None  # optionally links task_card to vault entry in same call
+
 Returns: { success: bool, updated_at: str }
 ```
+
+### `get_channel_task_cards(channel_id, since)`
+```
+Returns: list of enriched task card dicts:
+{
+  task_card_id:     str,
+  question:         str,   # question_canonical from vault_entry, or question_raw
+  answer:           str,   # current_answer from vault_entry
+  status:           str,
+  thread_ts:        str,
+  source_thread:    str,   # permalink to original thread
+  confidence_score: float,
+  embedding:        list[float],
+  owner_id:         str | None
+}
+```
+Used by Channel Insights Canvas to build Impact / KV / Open sections.
 
 ---
 
@@ -220,42 +244,49 @@ Returns: { success: bool, updated_at: str }
 
 ```
 1.  User @ Mira with a question
-2.  Claude classifies: QUESTION → proceed / NOISE → ignore
-3.  Post draft card immediately (instant feedback)
+2.  Claude classifies: QUESTION → proceed / INSIGHTS → show period selector / NOISE → ignore
+3.  Post draft card immediately (instant feedback in thread)
 4.  create_task_card() → DB record created
 5.  search_vault() — Tier 1
-6a. Match (>0.85) → pending_confirm with ⚡ Vault hit card
-6b. Low match (0.70–0.85) → clarifying question in thread
-6c. No match → Tier 2 parallel search
-7.  Tier 2: Slack history + GitHub MCP + Data Dictionary MCP
-8a. Candidate found → pending_confirm with source reference
-8b. Nothing → Tier 3: human_working card, register thread
-9.  Resolver replies in thread → resolution_handler detects it
-10. Card → pending_confirm with resolver's answer
-11. Requester confirms (✅ / "got it") or denies ("still broken")
-12. signal_1 → upsert_vault_entry() → verified
-    signal_2 → upsert_vault_entry() → unconfirmed ("Suggested")
-    signal_3 → upsert_vault_entry() → escalate, old answer → version_history
-13. Mira DMs resolver: "Want to save this for next time?"
-14. [Background] Vault patterns analyzed → Enhancement Proposals generated
-15. [Background] Approved fixes → Mira DMs original requesters
+6a. Match (≥0.82) → pending_confirm with ⚡ Vault hit card + "This helped ✓" button
+6b. No match → Tier 2 agentic investigation
+7.  investigator.py: Claude tool-use loop — search_github / read_file / search_slack_history
+8a. Findings assembled → direction_check card: "Does this look like the right direction?"
+    Requester confirms → card → human_working, resolver notified with full context
+8b. Nothing found → Tier 3: human_working card directly
+9.  Resolver replies directly in thread → resolution_handler detects reply
+10. Card → pending_confirm with resolver's answer + "Yes, resolved ✓" button
+11. Requester clicks button (Signal 1) or stays silent (Signal 2) or denies (Signal 3)
+12. Signal 1 → upsert_vault_entry(signal_1) → task_card + vault_entry → verified (0.90)
+    Signal 2 → upsert_vault_entry(signal_2) → unconfirmed (0.30–0.55)
+    Signal 3 → upsert_vault_entry(signal_3) → escalate, old answer → version_history
+13. Canvas auto-refreshes with latest stats (best-effort, non-blocking)
 ```
 
 ---
 
-## Dashboard — Slack Canvas
+## Channel Insights Canvas
 
-The Knowledge Vault Dashboard lives in Slack Canvas, not Block Kit App Home. Canvas supports
-real tables, rich text, and structured sections — giving a proper knowledge-base experience
-without leaving Slack.
+Triggered by `@Mira insights` → period selector (This Month / Quarter / Year) → Canvas updated.
+Also auto-refreshes silently on every vault_confirm action.
 
-**Requester view (personal):**
-- My questions — status, resolution history, whether my feedback drove any product change
+**Four sections:**
 
-**Resolver / Product Owner view:**
-- Open tasks (human_working) sorted by age
-- Knowledge Vault health (verified / suggested / outdated counts)
-- Enhancement Proposals with [Approve] [Reject] [Defer] actions
+**📊 Impact** — questions received, resolved vs open count, "Mira can now auto-serve X topics"
+
+**🧠 Knowledge Vault** — verified entries clustered by semantic similarity + answer text.
+Each cluster shows:
+- Full answer text as title (knowledge summary, not the question)
+- Confidence score + resolver name (via `users_info` API)
+- Original thread (chronologically first) with date + question excerpt + link
+- Later threads that were answered by the same knowledge, indented below
+
+**❓ Open** — unresolved questions with status progress string:
+`🔍 Investigated → ✓ Direction confirmed → ⏳ Resolver notified`
+
+**🌱 Enhancement Opportunities** — Claude-generated from resolved task cards.
+Numbered, categorized (📖 documentation / 🔧 code / 🎨 UX / 📋 process / 🚀 product),
+with observed pattern + suggested fix.
 
 ---
 
@@ -263,15 +294,14 @@ without leaving Slack.
 
 | Layer | Technology |
 |-------|-----------|
-| Bot framework | Slack Bolt for Python |
-| LLM — intent, extraction | Claude (`claude-sonnet-4-6`) |
+| Bot framework | Slack Bolt for Python (Socket Mode) |
+| LLM — intent, investigation, proposals | Claude (`claude-sonnet-4-6`) |
 | Embeddings — semantic search | OpenAI `text-embedding-3-small` |
 | Database | Supabase (PostgreSQL + pgvector) |
 | History search | Slack Real-Time Search API |
-| Code + schema search | GitHub MCP |
-| Business terms | Data Dictionary MCP |
-| Task card UI | Slack Block Kit |
-| Dashboard | Slack Canvas API |
+| Code + schema search | GitHub via Claude tool use (MCP pattern) |
+| Task card UI | Slack Block Kit (7-state lifecycle) |
+| Channel Insights | Slack Canvas API |
 | Hosting | Railway |
 
 ---
@@ -279,9 +309,10 @@ without leaving Slack.
 ## Deployment
 
 ```
-mira-app/      → Railway (Socket Mode dev → HTTP mode production)
-vault-service/ → Python package imported directly by mira-app (same process)
-Supabase       → hosted, free tier
+mira-app/      → Railway (Python process, Socket Mode)
+vault-service/ → Python package installed in mira-app's environment (pip install -e)
+               → same Railway process, imported directly
+Supabase       → hosted (external)
 ```
 
 ---
@@ -294,5 +325,5 @@ how that trust accumulates, what happens when it's wrong. Keeping these separate
 can be built, tested, and reasoned about independently — which is also why two people can
 build them in parallel without blocking each other.
 
-The Canvas Dashboard and Enhancement Proposal engine live in `mira-app` because they are
+The Canvas Dashboard and Enhancement Opportunity engine live in `mira-app` because they are
 about surfacing and acting on information, not about storing it. The storage boundary stays clean.
