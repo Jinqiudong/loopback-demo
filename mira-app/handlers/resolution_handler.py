@@ -403,17 +403,20 @@ def _investigate_proactively(text: str, channel: str, message_ts: str,
         vault_hit = confidence >= VAULT_HIGH_CONFIDENCE_THRESHOLD
 
         if vault_hit:
-            # High-confidence verified answer — link vault_entry_id so Canvas can join correctly
-            _vault.update_status(task_card_id, "verified",
-                                 vault_entry_id=vault_result.get("entry_id"))
-            update_status_reaction(client, channel, message_ts, "verified")
+            _vault.update_status(task_card_id, "pending_confirm")
+            update_status_reaction(client, channel, message_ts, "pending_confirm")
             client.chat_update(
                 channel=channel, ts=card_ts,
                 blocks=build_task_card(text, status="pending_confirm",
                                        results=[{**vault_result, "task_card_id": task_card_id}],
                                        thread_ts=message_ts, asker_id=asker_id,
                                        vault_hit=True),
-                text=f"[verified] {text}",
+                text=f"[pending_confirm] {text}",
+            )
+            register_pending_thread(
+                thread_ts=message_ts, card_ts=card_ts, channel=channel,
+                question_text=text, asker_id=asker_id, task_card_id=task_card_id,
+                answer=vault_result.get("answer", ""), vault_hit=True,
             )
         else:
             # Lower confidence — ask requester to confirm
