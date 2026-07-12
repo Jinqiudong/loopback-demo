@@ -8,10 +8,10 @@
 
 LoopBack is a Slack-native system with three layers of value:
 
-- **Mira** — the AI colleague you `@` in Slack. She searches three knowledge tiers in order,
+- **Mira** — the AI colleague in Slack. She searches three knowledge tiers in order,
   checks in with the requester before looping in anyone, and never relays between requester and resolver.
 - **Knowledge Vault** — the growing, verified memory Mira builds from every resolved conversation.
-- **Channel Insights** — Mira's PM identity: she analyzes Vault patterns to surface
+- **Channel Insights** — Show the summary of your channel activitis, present the Knowledge Vault, and Mira's PM identity analyzes Vault patterns to surface
   Enhancement Opportunities, turning repeated support questions into product signals.
 
 ---
@@ -21,7 +21,7 @@ LoopBack is a Slack-native system with three layers of value:
 Every conversation in Slack disappears the moment the thread goes quiet. The person asking
 just wants to be unblocked. The person answering may have answered this before. And nobody
 connects the dots: the same question asked seven times signals a product gap — but that signal
-is invisible unless something is listening. LoopBack listens.
+is invisible unless something is listening. The oppotunites for product improvement or process improvement never get noticed. LoopBack listens.
 
 ---
 
@@ -106,6 +106,25 @@ Channel Insights (async, on @Mira insights)
   │    pgvector)     │     │  Claude tool use) │
   └──────────────────┘     └──────────────────┘
 ```
+
+---
+
+## Intent classification — how Mira decides what to do
+
+Every `@Mira` mention goes through `services/intent.py` — four lightweight Claude classifiers,
+each returning a single word at `max_tokens=10`. No parsing, no regex, no keyword matching.
+
+| Classifier | Input | Output | Used when |
+|---|---|---|---|
+| `classify_intent` | The @mention text | `QUESTION / INSIGHTS / NOISE` | Every @mention — top-level routing |
+| `classify_resolution` | Requester's reply in thread | `RESOLVED / ONGOING` | Detecting "got it", "makes sense", "好的谢谢", "👍" |
+| `classify_direction_response` | Requester's reply to direction check | `ESCALATE / RESOLVED / UNCLEAR` | After Tier 2 findings — should Mira loop in a resolver? |
+| `classify_is_deflection` | Resolver's answer text | `DEFLECTION / ANSWER` | Detecting "please open a ticket" instead of a real answer |
+
+All four classifiers **fail closed** — an API error returns the safe default
+(`NOISE`, `ONGOING`, `UNCLEAR`) so a failure never triggers an unintended action.
+`classify_resolution` handles multilingual signals natively ("好的谢谢", "明白了", "alright")
+because Claude understands context, not just English keywords.
 
 ---
 
