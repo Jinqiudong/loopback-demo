@@ -213,11 +213,11 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
     lines.append("")
 
     if verified:
-        lines.append(f"→ **{len(verified)} resolved** — answers ready to reuse, no resolver needed next time")
+        lines.append(f"- ✅ **{len(verified)} resolved** — answers ready to reuse, no resolver needed next time")
     if unanswered:
-        lines.append(f"→ **{len(unanswered)} suggested** — has a candidate answer, awaiting confirmation")
+        lines.append(f"- 🔔 **{len(unanswered)} suggested** — has a candidate answer, awaiting confirmation")
     if open_q:
-        lines.append(f"→ **{len(open_q)} open** — a teammate is being looped in")
+        lines.append(f"- ❓ **{len(open_q)} open** — a teammate is being looped in")
 
     lines.append("")
     if verified:
@@ -247,22 +247,23 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str) -> str:
             lines.append(f"✅ {conf}% confidence{owner_str}{thread_str}")
             lines.append("")
 
-            # Indent similar questions that were answered by this same entry
-            if len(cluster) > 1:
-                for card in cluster:
-                    q = card["question"]
-                    q_short = q if len(q) <= 80 else q[:77] + "..."
-                    t = card.get("source_thread", "")
-                    t_str = f" [↗]({t})" if t else ""
-                    lines.append(f"  - {q_short}{t_str}")
-                lines.append("")
-            else:
-                q = best["question"]
+            # Deduplicate by question text, show count for repeats
+            seen_q: dict[str, dict] = {}
+            for card in cluster:
+                key = card["question"].strip().lower()
+                if key in seen_q:
+                    seen_q[key]["count"] += 1
+                else:
+                    seen_q[key] = {"card": card, "count": 1}
+
+            for q_data in seen_q.values():
+                q = q_data["card"]["question"]
                 q_short = q if len(q) <= 80 else q[:77] + "..."
-                t = best.get("source_thread", "")
+                t = q_data["card"].get("source_thread", "")
                 t_str = f" [↗]({t})" if t else ""
-                lines.append(f"  - {q_short}{t_str}")
-                lines.append("")
+                count_str = f" · asked {q_data['count']} times" if q_data["count"] > 1 else ""
+                lines.append(f"  - {q_short}{count_str}{t_str}")
+            lines.append("")
     else:
         lines += ["_No verified knowledge yet this period._", ""]
 

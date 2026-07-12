@@ -56,7 +56,7 @@ def generate_opportunities(cards: list[dict[str, Any]], period_label: str) -> li
     try:
         response = _client.messages.create(
             model=ANTHROPIC_MODEL,
-            max_tokens=600,
+            max_tokens=1200,
             system=_OPPORTUNITIES_PROMPT,
             messages=[{
                 "role": "user",
