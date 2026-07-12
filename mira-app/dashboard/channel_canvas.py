@@ -267,6 +267,7 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str, client=Non
             owner_str = f" · answered by @{owner_name}" if owner_name else ""
 
             lines.append(f"**{answer}**")
+            lines.append("")
             lines.append(f"✅ {conf}% confidence{owner_str}")
             lines.append("")
 
@@ -289,9 +290,9 @@ def _build_markdown(cards: list[dict], channel_name: str, label: str, client=Non
                 date_str = _ts_to_date(card.get("thread_ts", ""))
                 date_prefix = f"{date_str} · " if date_str else ""
                 if i == 0:
-                    lines.append(f"Original thread · {date_prefix}{q_short}{t_str}")
+                    lines.append(f"- Original thread · {date_prefix}{q_short}{t_str}")
                 else:
-                    lines.append(f"  ↳ {date_prefix}{q_short}{t_str}")
+                    lines.append(f"  - ↳ {date_prefix}{q_short}{t_str}")
             lines.append("")
     else:
         lines += ["_No verified knowledge yet this period._", ""]
