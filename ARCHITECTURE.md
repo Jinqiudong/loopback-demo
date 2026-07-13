@@ -27,8 +27,16 @@ is invisible unless something is listening. The oppotunites for product improvem
 
 ## Core mechanism
 
+Two entry points feed the same resolution pipeline:
+
+- **Proactive (primary):** User posts a question in the channel — no @Mira required.
+  Mira monitors all messages and classifies them automatically.
+- **Explicit:** User @Mira with a question. Mira classifies intent the same way.
+- **Insights only:** `@Mira insights` is the one trigger that requires @Mira —
+  it opens the Canvas period selector.
+
 ```
-User @ Mira with a question
+User posts question in channel (or @Mira [question])
     │
     ▼
 Intent classification (Claude) — question or noise?
@@ -67,10 +75,14 @@ Three-signal auto-save (no manual steps, requester signals only):
     Signal 3 (denial)         → escalate, old answer pushed to version_history
             │
             ▼
-Channel Insights (async, on @Mira insights)
+Channel Insights (on @Mira insights — the one required @mention)
     Claude analyzes accumulated task cards semantically
     Surfaces Enhancement Opportunities (LLM-generated, no templates)
     Channel Insights Canvas updated — Impact / Knowledge Vault / Open / Opportunities
+
+Ambient detection (parallel, always running):
+    If Mira wasn't involved in a thread AND the original asker signals resolution →
+    Mira offers to save the Q&A to the Vault ("Looks like this was resolved!")
 ```
 
 ---
@@ -111,13 +123,14 @@ Channel Insights (async, on @Mira insights)
 
 ## Intent classification — how Mira decides what to do
 
-Every `@Mira` mention goes through `services/intent.py` — four lightweight Claude classifiers,
-each returning a single word at `max_tokens=10`. No parsing, no regex, no keyword matching.
+Every message (proactive or @Mira) goes through `services/intent.py` — four lightweight Claude
+classifiers, each returning a single word at `max_tokens=10`. No parsing, no regex, no keyword
+matching.
 
 | Classifier | Input | Output | Used when |
 |---|---|---|---|
 | `classify_intent` | The @mention text | `QUESTION / INSIGHTS / NOISE` | Every @mention — top-level routing |
-| `classify_resolution` | Requester's reply in thread | `RESOLVED / ONGOING` | Detecting "got it", "makes sense", "好的谢谢", "👍" |
+| `classify_resolution` | Requester's reply in thread | `RESOLVED / ONGOING` | Detecting "got it", "makes sense"|
 | `classify_direction_response` | Requester's reply to direction check | `ESCALATE / RESOLVED / UNCLEAR` | After Tier 2 findings — should Mira loop in a resolver? |
 | `classify_is_deflection` | Resolver's answer text | `DEFLECTION / ANSWER` | Detecting "please open a ticket" instead of a real answer |
 
@@ -137,9 +150,10 @@ mira-app/
 ├── app.py                    # entry point — Bolt app, Socket Mode
 ├── config.py                 # env var loading + validation
 ├── handlers/
-│   ├── mention_handler.py    # @Mira listener, 3-tier search orchestration
+│   ├── mention_handler.py    # @Mira listener — INSIGHTS period selector + explicit question flow
 │   ├── action_handler.py     # button actions (confirm / not helpful / insights period)
-│   └── resolution_handler.py # detects resolver replies, triggers Vault write
+│   └── resolution_handler.py # proactive question detection (no @Mira), direction check,
+│                             #   resolution detection, ambient Q&A nudge
 ├── services/
 │   ├── intent.py             # Claude API — QUESTION vs INSIGHTS vs NOISE
 │   ├── task_card.py          # Block Kit card builder (all 7 statuses)
@@ -262,7 +276,7 @@ Used by Channel Insights Canvas to build Impact / KV / Open sections.
 ## Data flow — one full resolution cycle
 
 ```
-1.  User @ Mira with a question
+1.  User posts question in channel (no @Mira needed) — or explicitly @Mira [question]
 2.  Claude classifies: QUESTION → proceed / INSIGHTS → show period selector / NOISE → ignore
 3.  Post draft card immediately (instant feedback in thread)
 4.  create_task_card() → DB record created
